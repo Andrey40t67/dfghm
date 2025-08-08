@@ -1,405 +1,770 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Full‑Body Game + 3D Avatar (WebCam)</title>
-  <style>
-    :root{--bg:#0b0b12;--fg:#e9ecf1;--accent:#7ad7ff;--ok:#64f4ac;--warn:#ffb84d;--err:#ff5b5b}
-    html,body{height:100%;}
-    body{margin:0;background:radial-gradient(1200px 800px at 70% 10%, #141428 0%, #0b0b12 40%, #07070d 100%);color:var(--fg);font:500 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial}
-    #app{position:fixed;inset:0;display:grid;grid-template-areas:'stage' 'hud';grid-template-rows:1fr auto}
-    canvas#stage{grid-area:stage;display:block;width:100%;height:100%}
-    #hud{grid-area:hud;display:flex;gap:.5rem;align-items:center;justify-content:center;padding:.6rem .8rem;background:linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,.25));backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
-    #hud button,#hud .segment{appearance:none;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--fg);padding:.6rem .8rem;border-radius:12px;cursor:pointer;transition:.2s transform,.2s background,.2s border-color;user-select:none}
-    #hud button:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}
-    #hud .segment{display:flex;gap:.25rem;align-items:center}
-    #hud .segment label{opacity:.75}
-    #log{position:fixed;inset:auto 10px 70px 10px;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;justify-content:center}
-    #log .pill{padding:.3rem .6rem;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12)}
-    #overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
-    .card{max-width:840px;width:min(92vw,840px);background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px 18px 16px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
-    .card h1{margin:.2rem 0 0;font-weight:800;letter-spacing:.2px}
-    .grid{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-    .grid p{margin:.2rem 0;opacity:.9}
-    .muted{opacity:.65}
-    .kbd{font-weight:700;background:rgba(255,255,255,.08);padding:.1rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.12)}
-    #start{pointer-events:auto}
-    #debug{position:fixed;inset:0;pointer-events:none}
-    video#cam{position:fixed;right:12px;bottom:90px;width:240px;max-width:34vw;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 40px rgba(0,0,0,.5);display:none}
-    .tag{display:inline-flex;gap:.35rem;align-items:center;padding:.25rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06)}
-    .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
-  </style>
-  <!-- External libs (globals) -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@3.5.0/dist/pose-detection.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Avatar Body Tracking Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader {
+            width: 80px;
+            height: 80px;
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            border-top: 8px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .title {
+            font-size: 3.5em;
+            font-weight: 800;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(255,255,255,0.5); }
+            to { text-shadow: 0 0 30px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.5); }
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 20px 60px;
+            font-size: 1.3em;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: none;
+        }
+
+        #videoCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+            display: none;
+        }
+
+        #avatarCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.5);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .score {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .level {
+            font-size: 1.2em;
+            color: #ffd700;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 15px 30px;
+            border-radius: 30px;
+            color: white;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .powerup {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffd700, #ff6b6b);
+            box-shadow: 0 0 30px rgba(255,215,0,0.8);
+            animation: float 3s ease-in-out infinite;
+            z-index: 50;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 2s ease-out forwards;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--dx), var(--dy));
+            }
+        }
+
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        #calibrationOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 500;
+            color: white;
+            text-align: center;
+        }
+
+        .calibration-guide {
+            background: rgba(255,255,255,0.1);
+            border: 3px dashed rgba(255,255,255,0.5);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        .body-outline {
+            width: 200px;
+            height: 400px;
+            border: 4px solid #ffd700;
+            border-radius: 20px;
+            margin: 20px auto;
+            position: relative;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <canvas id="stage"></canvas>
-    <div id="hud">
-      <button id="start">▶ Включить камеру</button>
-      <button id="pause" disabled>⏸ Пауза</button>
-      <button id="dbg">🧩 Отладка</button>
-      <button id="toggleCam">📷 Превью</button>
-      <div class="segment" title="Сглаживание позы">
-        <label>Сглаживание</label>
-        <input id="smooth" type="range" min="0" max="0.98" step="0.02" value="0.6" />
-      </div>
-      <div class="segment" title="Качество рендера">
-        <label>Качество</label>
-        <input id="dpr" type="range" min="1" max="2" step="0.25" value="1.25" />
-      </div>
-      <span class="tag" id="fps">FPS: --</span>
-      <span class="tag" id="status"><span class="dot">🟡</span> Готово</span>
+    <div id="loadingScreen">
+        <div class="loader"></div>
+        <p style="color: white; margin-top: 20px; font-size: 1.2em;">Загрузка игры...</p>
     </div>
-  </div>
 
-  <!-- Instruction overlay -->
-  <div id="overlay">
-    <div class="card">
-      <h1>Игра с управлением телом + 3D‑аватар</h1>
-      <div class="grid">
-        <p>1) Поставь ноут на уровне груди, отойди на 2–3 метра так, чтобы в кадре было видно всё тело (голова, ступни). Освещение – равномерное спереди.</p>
-        <p>2) Нажми <span class="kbd">Включить камеру</span>, дай доступ. В Safari/мобилках нужен HTTPS и реальный клик.</p>
-        <p>3) Подними руки над головой – запустится калибровка. Левый/правый наклон – смещение по дорожке. Руки вверх – прыжок. Присед – слайд.</p>
-        <p class="muted">Фон камеры не показывается – в игре рендерится только 3D‑аватар. Превью можно включить кнопкой «Превью».</p>
-      </div>
+    <div id="startScreen">
+        <h1 class="title">🎮 AVATAR MASTER 3D</h1>
+        <p class="subtitle">Управляй аватаром своим телом!</p>
+        <div style="margin-bottom: 30px;">
+            <p style="margin-bottom: 10px;">📸 Разреши доступ к камере</p>
+            <p style="margin-bottom: 10px;">🚶 Встань так, чтобы было видно всё тело</p>
+            <p style="margin-bottom: 10px;">🎯 Собирай бонусы движениями</p>
+        </div>
+        <button class="start-btn" onclick="startGame()">НАЧАТЬ ИГРУ</button>
     </div>
-  </div>
 
-  <video id="cam" playsinline muted></video>
-  <canvas id="debug"></canvas>
+    <div id="calibrationOverlay">
+        <div class="calibration-guide">
+            <h2 style="font-size: 2em; margin-bottom: 20px;">Калибровка позиции</h2>
+            <div class="body-outline"></div>
+            <p style="font-size: 1.1em;">Отойди от камеры и встань в рамку</p>
+            <p style="margin-top: 10px; opacity: 0.8;">Убедись, что видно всё тело</p>
+        </div>
+    </div>
 
-  <script type="module">
-    // ====== THREE.js scene ======
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
-    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+    <div id="gameContainer">
+        <video id="videoCanvas" playsinline></video>
+        <canvas id="avatarCanvas"></canvas>
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="controls">
+            <div class="score">Очки: <span id="scoreValue">0</span></div>
+            <div class="level">Уровень: <span id="levelValue">1</span></div>
+        </div>
+        
+        <div class="instructions">
+            Двигайся, чтобы собирать бонусы! 🎯
+        </div>
+    </div>
 
-    const stage = document.getElementById('stage');
-    const renderer = new THREE.WebGLRenderer({ canvas: stage, antialias: true, alpha: true });
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const scene = new THREE.Scene();
-    const camera3d = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
-    camera3d.position.set(0, 1.55, 3.8);
+    <div class="error-message" id="errorMessage">
+        <h3>Ошибка</h3>
+        <p id="errorText"></p>
+    </div>
 
-    const controls = new OrbitControls(camera3d, renderer.domElement);
-    controls.enableDamping = true;
-    controls.enableZoom = false;
-    controls.minPolarAngle = Math.PI*0.2;
-    controls.maxPolarAngle = Math.PI*0.49;
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera3d));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), 0.6, 0.8, 0.2);
-    composer.addPass(bloom);
-
-    // Lights & env
-    const hemi = new THREE.HemisphereLight(0xb8c8ff, 0x0a0a12, 0.9); scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(2, 5, 3); key.castShadow = true; scene.add(key);
-    const rim = new THREE.DirectionalLight(0x8fd5ff, 0.6); rim.position.set(-3, 4, -2); scene.add(rim);
-
-    // Ground & lane markers
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 200), new THREE.MeshStandardMaterial({ color: 0x0c0e16, metalness:.1, roughness:.9 }));
-    ground.rotation.x = -Math.PI/2; ground.position.y = 0; ground.receiveShadow = true; scene.add(ground);
-
-    const laneMat = new THREE.MeshStandardMaterial({ color: 0x12304a, metalness:.3, roughness:.2, emissive:0x061628, emissiveIntensity:1.2 });
-    for (let i=-2;i<=2;i+=2){
-      const lane = new THREE.Mesh(new THREE.BoxGeometry(0.05, .01, 200), laneMat);
-      lane.position.set(i, .005, 0); lane.castShadow = false; lane.receiveShadow = true; scene.add(lane);
-    }
-
-    // Avatar materials
-    const limbMat = new THREE.MeshPhysicalMaterial({ color: 0x9ad8ff, metalness: 0.5, roughness: 0.2, clearcoat: 1, clearcoatRoughness: .05, transmission: .1, thickness: .35, emissive: 0x0a2740, emissiveIntensity:.5 });
-    const torsoMat = new THREE.MeshPhysicalMaterial({ color: 0x7df0c8, metalness: 0.4, roughness: 0.25, clearcoat: 1, emissive: 0x0b3a2a, emissiveIntensity:.6 });
-    const headMat  = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.4, emissive:0x222222, emissiveIntensity:.25 });
-
-    const player = new THREE.Group(); scene.add(player);
-
-    // Helper to create a limb (cylinder between two joints)
-    function createLimb(radius=0.035, mat=limbMat){
-      const geo = new THREE.CylinderGeometry(radius, radius, 1, 16, 1, true);
-      const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.frustumCulled = false;
-      const g = new THREE.Group();
-      // Default cylinder is Y-up, center pivot: scale.y will stretch half-length via child wrapper
-      const wrapper = new THREE.Group(); wrapper.add(mesh); mesh.position.y = 0; // centered
-      g.add(wrapper);
-      g.userData.mesh = mesh; g.userData.wrapper = wrapper;
-      return g;
-    }
-
-    function updateLimb(g, a, b){
-      // a,b are THREE.Vector3 positions (world-space for avatar local)
-      const v = new THREE.Vector3().subVectors(b, a);
-      const len = v.length();
-      const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
-      g.position.copy(mid);
-      // Orient cylinder along v from a->b (default up 0,1,0)
-      const up = new THREE.Vector3(0,1,0);
-      const q = new THREE.Quaternion().setFromUnitVectors(up, v.clone().normalize());
-      g.setRotationFromQuaternion(q);
-      g.userData.wrapper.scale.set(1, len, 1); // since cylinder height is 1, scale.y = length
-    }
-
-    // Build avatar rig
-    const avatar = { joints: {}, limbs: {} };
-    const jointNames = [
-      'nose','left_shoulder','right_shoulder','left_elbow','right_elbow','left_wrist','right_wrist','left_hip','right_hip','left_knee','right_knee','left_ankle','right_ankle','left_heel','right_heel','left_foot_index','right_foot_index'
-    ];
-    jointNames.forEach(n=>{ const s = new THREE.SphereGeometry(0.03); const m = new THREE.MeshStandardMaterial({ color: 0x89aaff, emissive:0x0b2140, emissiveIntensity:.6, metalness:.3, roughness:.3 }); const mesh = new THREE.Mesh(s,m); mesh.castShadow=true; player.add(mesh); avatar.joints[n]=mesh; });
-
-    const torso = createLimb(0.08, torsoMat); player.add(torso); avatar.limbs['torso']=torso;
-
-    const pairs = [
-      ['left_shoulder','left_elbow'],['left_elbow','left_wrist'],
-      ['right_shoulder','right_elbow'],['right_elbow','right_wrist'],
-      ['left_hip','left_knee'],['left_knee','left_ankle'],
-      ['right_hip','right_knee'],['right_knee','right_ankle'],
-      ['left_shoulder','right_shoulder'],['left_hip','right_hip']
-    ];
-    for (const p of pairs){ const limb = createLimb(); player.add(limb); avatar.limbs[p.join('-')] = limb; }
-
-    // Head (sphere)
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 18), headMat); head.castShadow = true; player.add(head); avatar.head = head;
-
-    // Obstacles & gameplay
-    const obstacles = []; const obstacleGeo = new THREE.BoxGeometry(.5,.5,.5);
-    function spawnObstacle(){
-      const m = new THREE.MeshStandardMaterial({ color: 0x294d6b, metalness:.4, roughness:.2, emissive:0x0a2030, emissiveIntensity: 1.4 });
-      const box = new THREE.Mesh(obstacleGeo, m); box.castShadow=true; box.receiveShadow=true;
-      const laneX = [-2,0,2][Math.floor(Math.random()*3)];
-      box.position.set(laneX, .25, -18 - Math.random()*10);
-      scene.add(box); obstacles.push(box);
-    }
-
-    // ====== Video + Pose Detector ======
-    const video = document.getElementById('cam');
-    const dbg = document.getElementById('debug');
-    const debugCtx = dbg.getContext('2d');
-
-    let detector = null;
-    let running = false;
-    let lastTime = performance.now();
-    let ema = {}; // exponential smoothing buffer by joint name
-    let smoothK = 0.6;
-    let showDebug = false;
-
-    // Helpers
-    function lerp(a,b,t){ return a+(b-a)*t }
-    function vLerp(out,a,b,t){ out.x=lerp(a.x,b.x,t); out.y=lerp(a.y,b.y,t); out.z=lerp(a.z,b.z,t); return out }
-
-    function fitRenderer(){
-      const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w,h,false); renderer.setPixelRatio(Number(dprInput.value)||1);
-      camera3d.aspect = w/h; camera3d.updateProjectionMatrix(); composer.setSize(w,h);
-      dbg.width = Math.min(480, Math.floor(w*0.5)); dbg.height = Math.floor(dbg.width*9/16);
-    }
-    window.addEventListener('resize', fitRenderer);
-
-    const startBtn = document.getElementById('start');
-    const pauseBtn = document.getElementById('pause');
-    const dbgBtn = document.getElementById('dbg');
-    const dprInput = document.getElementById('dpr');
-    const smoothInput = document.getElementById('smooth');
-    const toggleCamBtn = document.getElementById('toggleCam');
-    const statusPill = document.getElementById('status');
-    const fpsPill = document.getElementById('fps');
-
-    smoothInput.addEventListener('input', () => { smoothK = Number(smoothInput.value); });
-    dprInput.addEventListener('input', fitRenderer);
-    dbgBtn.addEventListener('click', ()=>{ showDebug=!showDebug; dbg.style.display = showDebug? 'block':'none'; });
-    toggleCamBtn.addEventListener('click', ()=>{ video.style.display = video.style.display==='none' ? 'block' : 'none' });
-
-    async function ensureCamera(){
-      const constraints = { video: { facingMode: 'user', width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 30} }, audio: false };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      video.srcObject = stream; await video.play();
-      video.muted = true; video.playsInline = true; video.setAttribute('playsinline','true');
-      return stream;
-    }
-
-    async function ensureDetector(){
-      const BlazePose = poseDetection.SupportedModels.BlazePose;
-      detector = await poseDetection.createDetector(BlazePose, {
-        runtime: 'mediapipe', // mediapipe runtime gives high‑quality 3D keypoints
-        solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404',
-        modelType: 'heavy',     // better accuracy (desktop)
-        enableSmoothing: true,
-        minPoseScore: 0.4
-      });
-    }
-
-    function setStatus(text, cls=''){
-      statusPill.textContent = text; statusPill.className = 'tag ' + cls;
-    }
-
-    async function start(){
-      try{
-        setStatus('Запрашиваю камеру…','warn');
-        await ensureCamera();
-        setStatus('Загружаю трекинг…','warn');
-        await ensureDetector();
-        setStatus('Камера ок • трекинг ок','ok');
-        startBtn.disabled = true; pauseBtn.disabled = false; running = true; document.getElementById('overlay').style.display='none';
-      }catch(err){ console.error(err); setStatus('Ошибка доступа к камере / трекингу','err'); alert('Не удалось получить доступ к камере или загрузить модель. Проверь HTTPS и дайте доступ камере.'); }
-    }
-
-    startBtn.addEventListener('click', start);
-    pauseBtn.addEventListener('click', ()=>{ running = !running; pauseBtn.textContent = running? '⏸ Пауза' : '▶ Продолжить'; });
-
-    // ====== Pose → Avatar mapping ======
-    const V3 = THREE.Vector3;
-    const zero = new V3();
-    const jp = {}; // current joint positions (local space)
-
-    function kp3(name, list){
-      const k = list.find(p=>p.name===name) || list[0];
-      const v = new V3(k.x??0, k.y??0, k.z??0);
-      // Mediapipe 3D: X right, Y down, Z forward(negative). Convert to avatar space (Y up, Z forward+)
-      v.set(v.x, -v.y, -v.z);
-      return v;
-    }
-
-    function smooth(name, cur){
-      const e = ema[name] || cur.clone();
-      const out = vLerp(new V3(), e, cur, 1 - smoothK);
-      ema[name] = out.clone();
-      return out;
-    }
-
-    function updateAvatarFromPose(pose){
-      if(!pose) return;
-      const k2 = pose.keypoints || [];
-      const k3 = pose.keypoints3D && pose.keypoints3D.length ? pose.keypoints3D : k2.map(k=>({name:k.name,x:k.x/Math.max(video.videoWidth,1),y:k.y/Math.max(video.videoHeight,1),z:0}));
-
-      // Build joint set we care about
-      const j = {};
-      for(const n of jointNames){ j[n] = smooth(n, kp3(n, k3)); }
-
-      // Derived centers
-      const hipCenter = smooth('hip_center', j['left_hip'].clone().add(j['right_hip']).multiplyScalar(0.5));
-      const shCenter  = smooth('shoulder_center', j['left_shoulder'].clone().add(j['right_shoulder']).multiplyScalar(0.5));
-
-      // Normalize & scale avatar size (target body height ≈ 1.7 units)
-      const feetY = Math.max(j['left_foot_index'].y, j['right_foot_index'].y, j['left_ankle'].y, j['right_ankle'].y);
-      const headY = Math.min(j['nose'].y, j['left_shoulder'].y-0.25, j['right_shoulder'].y-0.25);
-      const height = Math.max(0.6, (feetY - headY));
-      const scale = 1.7 / height;
-
-      // Position avatar root on ground (y=0), keep slight Z back
-      player.position.lerp(new V3(0, 0, 0), 0.1);
-      player.scale.lerp(new V3(scale, scale, scale), 0.15);
-
-      // Update joint meshes
-      for(const n in avatar.joints){ const p = j[n]; avatar.joints[n].position.copy(p); }
-
-      // Torso between centers
-      updateLimb(avatar.limbs['torso'], shCenter, hipCenter);
-
-      // Limbs
-      for(const [a,b] of pairs){ updateLimb(avatar.limbs[a+'-'+b], j[a], j[b]); }
-
-      // Head above nose based on shoulder span
-      const shoulderSpan = j['left_shoulder'].distanceTo(j['right_shoulder']);
-      const headPos = j['nose'].clone().add(new V3(0, shoulderSpan*0.35, 0));
-      avatar.head.position.copy(headPos);
-      avatar.head.scale.setScalar(THREE.MathUtils.clamp(shoulderSpan*0.7, 0.1, 0.35));
-
-      // ====== GAME CONTROL ======
-      // Horizontal: lean controls (angle between shoulders vs horizontal)
-      const lean = THREE.MathUtils.clamp((j['right_shoulder'].y - j['left_shoulder'].y) * 3.5, -1.5, 1.5);
-      const targetX = lean * 2.2; // 3 lanes coverage
-      player.position.x = lerp(player.position.x, targetX, 0.15);
-
-      // Jump: both wrists above head
-      const wristsUp = (Math.min(j['left_wrist'].y, j['right_wrist'].y) < (headPos.y - shoulderSpan*0.15));
-      if(wristsUp && player.userData.grounded !== false){ player.userData.vy = 0.18; player.userData.grounded=false; }
-
-      // Slide (duck): hips drop significantly
-      player.userData.duck = (hipCenter.y < shCenter.y - shoulderSpan*0.6);
-    }
-
-    // Simple physics for jump
-    function updatePhysics(dt){
-      const g = -0.9; // gravity (units/s^2)
-      player.userData.vy = (player.userData.vy||0) + g*dt;
-      const y = (player.position.y||0) + (player.userData.vy||0);
-      if(y <= 0){ player.position.y = 0; player.userData.vy = 0; player.userData.grounded = true; }
-      else{ player.position.y = y; }
-    }
-
-    // Spawn loop
-    let spawnAcc = 0, score=0;
-
-    // Main loop
-    async function loop(){
-      requestAnimationFrame(loop);
-      const now = performance.now();
-      const dt = Math.min(0.05, (now - lastTime)/1000); lastTime = now;
-
-      // Pose detection
-      if(running && detector && video.readyState >= 2){
-        const poses = await detector.estimatePoses(video, { flipHorizontal: true });
-        updateAvatarFromPose(poses[0]);
-      }
-
-      // Physics & gameplay
-      if(running){
-        updatePhysics(dt);
-        spawnAcc += dt; if(spawnAcc>1.1){ spawnAcc=0; spawnObstacle(); }
-        for(let i=obstacles.length-1;i>=0;i--){
-          const o = obstacles[i]; o.position.z += 6*dt;
-          // Collision AABB vs player
-          const px = player.position.x, py = player.position.y + 1.0; // chest height
-          if(Math.abs(o.position.x - px) < 0.45 && Math.abs(o.position.z - 0) < 0.4){
-            const obstacleTop = o.position.y + 0.25;
-            const ducking = player.userData.duck;
-            const jumping = py > 0.8;
-            if(!(ducking || jumping)){
-              // hit
-              setStatus('Столкновение! Счёт: '+score, 'err');
-              // reset
-              for(const x of obstacles){ scene.remove(x); }
-              obstacles.length=0; score=0; break;
+    <script>
+        let score = 0;
+        let level = 1;
+        let gameActive = false;
+        let pose, camera;
+        let avatarCanvas, avatarCtx;
+        let gameCanvas, gameCtx;
+        let powerups = [];
+        let particles = [];
+        let lastPoseResults = null;
+        let calibrated = false;
+        
+        // Avatar parameters
+        let avatarJoints = {};
+        let avatarColor = '#00ff88';
+        let glowIntensity = 0;
+        
+        class Powerup {
+            constructor() {
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+                this.radius = 30;
+                this.collected = false;
+                this.type = Math.random() > 0.7 ? 'mega' : 'normal';
+                this.value = this.type === 'mega' ? 50 : 10;
+                this.hue = Math.random() * 360;
             }
-          }
-          if(o.position.z > 3){ scene.remove(o); obstacles.splice(i,1); score++; setStatus('Счёт: '+score,'ok'); }
+            
+            draw(ctx) {
+                if (this.collected) return;
+                
+                ctx.save();
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                
+                if (this.type === 'mega') {
+                    gradient.addColorStop(0, `hsla(${this.hue}, 100%, 70%, 1)`);
+                    gradient.addColorStop(0.5, `hsla(${this.hue}, 100%, 50%, 0.8)`);
+                    gradient.addColorStop(1, `hsla(${this.hue}, 100%, 30%, 0)`);
+                    
+                    // Extra glow for mega powerups
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = `hsla(${this.hue}, 100%, 50%, 0.8)`;
+                } else {
+                    gradient.addColorStop(0, 'rgba(255, 215, 0, 1)');
+                    gradient.addColorStop(0.5, 'rgba(255, 165, 0, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+                    
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+                }
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner star
+                ctx.fillStyle = 'white';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'white';
+                drawStar(ctx, this.x, this.y, 5, this.radius * 0.4, this.radius * 0.2);
+                
+                ctx.restore();
+                
+                this.hue = (this.hue + 2) % 360;
+            }
+            
+            checkCollision(x, y) {
+                const dist = Math.sqrt((this.x - x) ** 2 + (this.y - y) ** 2);
+                return dist < this.radius + 20;
+            }
         }
-      }
-
-      // Debug overlay
-      if(showDebug){
-        debugCtx.clearRect(0,0,dbg.width, dbg.height);
-        try{
-          debugCtx.globalAlpha = 0.4; debugCtx.drawImage(video,0,0,dbg.width,dbg.height); debugCtx.globalAlpha=1;
-        }catch{}
-        debugCtx.fillStyle = 'white'; debugCtx.font = '12px system-ui'; debugCtx.fillText('Отладка – камера + поза', 8, 18);
-      }
-
-      controls.update();
-      composer.render();
-
-      // FPS
-      const fps = Math.round(1000 / (now - (loop.last||now-16))); loop.last = now;
-      fpsPill.textContent = 'FPS: ' + fps;
-    }
-
-    fitRenderer();
-    loop();
-
-    // Resize observer for canvas DPR changes
-    const ro = new ResizeObserver(fitRenderer); ro.observe(document.body);
-
-    // ====== Safety & capability checks ======
-    if(!('mediaDevices' in navigator)){
-      setStatus('Нет доступа к камере в этом браузере','err');
-    }
-    if(!WebGLRenderingContext){
-      setStatus('WebGL не поддерживается','err');
-    }
-  </script>
+        
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.life = 1;
+                this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.3;
+                this.life -= 0.02;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+            let rot = Math.PI / 2 * 3;
+            let x = cx;
+            let y = cy;
+            const step = Math.PI / spikes;
+            
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - outerRadius);
+            
+            for (let i = 0; i < spikes; i++) {
+                x = cx + Math.cos(rot) * outerRadius;
+                y = cy + Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+                
+                x = cx + Math.cos(rot) * innerRadius;
+                y = cy + Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            
+            ctx.lineTo(cx, cy - outerRadius);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function initializePose() {
+            pose = new Pose({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
+                }
+            });
+            
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: true,
+                smoothSegmentation: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            
+            pose.onResults(onPoseResults);
+        }
+        
+        function onPoseResults(results) {
+            lastPoseResults = results;
+            
+            if (!calibrated && results.poseLandmarks) {
+                checkCalibration(results.poseLandmarks);
+            }
+            
+            if (gameActive && results.poseLandmarks) {
+                updateAvatar(results);
+                checkPowerupCollisions(results.poseLandmarks);
+            }
+        }
+        
+        function checkCalibration(landmarks) {
+            // Check if full body is visible
+            const nose = landmarks[0];
+            const leftAnkle = landmarks[27];
+            const rightAnkle = landmarks[28];
+            
+            if (nose && leftAnkle && rightAnkle) {
+                const bodyHeight = Math.abs(nose.y - Math.max(leftAnkle.y, rightAnkle.y));
+                if (bodyHeight > 0.6) {
+                    calibrated = true;
+                    document.getElementById('calibrationOverlay').style.display = 'none';
+                    gameActive = true;
+                    spawnPowerups();
+                    gameLoop();
+                }
+            }
+        }
+        
+        function updateAvatar(results) {
+            avatarCtx.clearRect(0, 0, avatarCanvas.width, avatarCanvas.height);
+            
+            if (!results.poseLandmarks) return;
+            
+            const landmarks = results.poseLandmarks;
+            
+            // Draw avatar skeleton with enhanced graphics
+            drawEnhancedSkeleton(avatarCtx, landmarks);
+            
+            // Draw avatar body parts
+            drawAvatarBody(avatarCtx, landmarks);
+        }
+        
+        function drawEnhancedSkeleton(ctx, landmarks) {
+            const connections = [
+                [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+                [11, 23], [12, 24], [23, 24], [23, 25], [24, 26],
+                [25, 27], [26, 28], [0, 1], [1, 2], [2, 3], [3, 7],
+                [0, 4], [4, 5], [5, 6], [6, 8], [9, 10]
+            ];
+            
+            ctx.strokeStyle = avatarColor;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.shadowBlur = 20 + glowIntensity;
+            ctx.shadowColor = avatarColor;
+            
+            connections.forEach(([start, end]) => {
+                const p1 = landmarks[start];
+                const p2 = landmarks[end];
+                
+                if (p1 && p2) {
+                    const x1 = p1.x * avatarCanvas.width;
+                    const y1 = p1.y * avatarCanvas.height;
+                    const x2 = p2.x * avatarCanvas.width;
+                    const y2 = p2.y * avatarCanvas.height;
+                    
+                    const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+                    gradient.addColorStop(0, avatarColor);
+                    gradient.addColorStop(0.5, '#ffffff');
+                    gradient.addColorStop(1, avatarColor);
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+            });
+            
+            glowIntensity = (glowIntensity + 1) % 20;
+        }
+        
+        function drawAvatarBody(ctx, landmarks) {
+            // Draw joints as glowing orbs
+            landmarks.forEach((landmark, index) => {
+                const x = landmark.x * avatarCanvas.width;
+                const y = landmark.y * avatarCanvas.height;
+                
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 15);
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(0.3, avatarColor);
+                gradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, 15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Extra glow for major joints
+                if ([0, 11, 12, 23, 24, 25, 26, 27, 28].includes(index)) {
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            // Draw head as special avatar feature
+            const head = landmarks[0];
+            if (head) {
+                const headX = head.x * avatarCanvas.width;
+                const headY = head.y * avatarCanvas.height;
+                
+                // Avatar head with halo effect
+                const haloGradient = ctx.createRadialGradient(headX, headY, 0, headX, headY, 50);
+                haloGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                haloGradient.addColorStop(0.5, 'rgba(0, 255, 136, 0.4)');
+                haloGradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = haloGradient;
+                ctx.beginPath();
+                ctx.arc(headX, headY, 50, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function checkPowerupCollisions(landmarks) {
+            // Use right hand for collision detection
+            const rightHand = landmarks[16];
+            const leftHand = landmarks[15];
+            
+            [rightHand, leftHand].forEach(hand => {
+                if (!hand) return;
+                
+                const handX = hand.x * window.innerWidth;
+                const handY = hand.y * window.innerHeight;
+                
+                powerups.forEach(powerup => {
+                    if (!powerup.collected && powerup.checkCollision(handX, handY)) {
+                        collectPowerup(powerup, handX, handY);
+                    }
+                });
+            });
+        }
+        
+        function collectPowerup(powerup, x, y) {
+            powerup.collected = true;
+            score += powerup.value;
+            document.getElementById('scoreValue').textContent = score;
+            
+            // Create explosion of particles
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y));
+            }
+            
+            // Level up check
+            if (score >= level * 100) {
+                levelUp();
+            }
+            
+            // Change avatar color on mega powerup
+            if (powerup.type === 'mega') {
+                avatarColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                setTimeout(() => {
+                    avatarColor = '#00ff88';
+                }, 2000);
+            }
+        }
+        
+        function levelUp() {
+            level++;
+            document.getElementById('levelValue').textContent = level;
+            
+            // Flash effect
+            avatarCanvas.style.animation = 'flash 0.5s';
+            setTimeout(() => {
+                avatarCanvas.style.animation = '';
+            }, 500);
+        }
+        
+        function spawnPowerups() {
+            // Clear old powerups
+            powerups = powerups.filter(p => !p.collected);
+            
+            // Spawn new powerups based on level
+            const count = Math.min(3 + level, 10);
+            while (powerups.length < count) {
+                powerups.push(new Powerup());
+            }
+            
+            setTimeout(spawnPowerups, 5000);
+        }
+        
+        function gameLoop() {
+            if (!gameActive) return;
+            
+            gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+            
+            // Update and draw particles
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw(gameCtx);
+            });
+            
+            // Draw powerups
+            powerups.forEach(powerup => {
+                powerup.draw(gameCtx);
+            });
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        async function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('loadingScreen').style.display = 'flex';
+            
+            try {
+                // Initialize canvases
+                avatarCanvas = document.getElementById('avatarCanvas');
+                avatarCtx = avatarCanvas.getContext('2d');
+                gameCanvas = document.getElementById('gameCanvas');
+                gameCtx = gameCanvas.getContext('2d');
+                
+                // Set canvas sizes
+                avatarCanvas.width = window.innerWidth;
+                avatarCanvas.height = window.innerHeight;
+                gameCanvas.width = window.innerWidth;
+                gameCanvas.height = window.innerHeight;
+                
+                // Initialize MediaPipe Pose
+                initializePose();
+                
+                // Setup camera
+                const videoElement = document.getElementById('videoCanvas');
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await pose.send({image: videoElement});
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                
+                await camera.start();
+                
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('gameContainer').style.display = 'block';
+                document.getElementById('calibrationOverlay').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error starting game:', error);
+                showError('Не удалось запустить игру. Проверьте доступ к камере.');
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('errorMessage').style.display = 'none';
+            }, 5000);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (avatarCanvas && gameCanvas) {
+                avatarCanvas.width = window.innerWidth;
+                avatarCanvas.height = window.innerHeight;
+                gameCanvas.width = window.innerWidth;
+                gameCanvas.height = window.innerHeight;
+            }
+        });
+        
+        // Hide loading screen when ready
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }, 1000);
+        });
+        
+        // Add flash animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes flash {
+                0%, 100% { filter: brightness(1); }
+                50% { filter: brightness(2) hue-rotate(180deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
 </body>
 </html>
