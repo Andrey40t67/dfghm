@@ -1,1416 +1,236 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Avatar Motion Game - Ultra Quality</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #000;
-            min-height: 100vh;
-            overflow: hidden;
-            position: relative;
-        }
-
-        #setupScreen {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        #setupScreen.hidden {
-            opacity: 0;
-            transform: scale(1.1);
-            pointer-events: none;
-        }
-
-        #setupScreen::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="1" fill="white" opacity="0.3"><animate attributeName="opacity" values="0.3;1;0.3" dur="3s" repeatCount="indefinite"/></circle><circle cx="80" cy="80" r="1" fill="white" opacity="0.3"><animate attributeName="opacity" values="0.3;1;0.3" dur="3s" begin="1s" repeatCount="indefinite"/></circle><circle cx="50" cy="50" r="1" fill="white" opacity="0.3"><animate attributeName="opacity" values="0.3;1;0.3" dur="3s" begin="2s" repeatCount="indefinite"/></circle></svg>');
-            opacity: 0.1;
-            animation: stars 20s linear infinite;
-        }
-
-        @keyframes stars {
-            from { transform: translateY(0); }
-            to { transform: translateY(-100px); }
-        }
-
-        .setup-content {
-            text-align: center;
-            color: white;
-            max-width: 700px;
-            padding: 50px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: slideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            z-index: 1;
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .setup-content h1 {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: glow 3s ease-in-out infinite;
-            letter-spacing: -2px;
-            font-weight: 900;
-        }
-
-        @keyframes glow {
-            0%, 100% { 
-                filter: brightness(1) drop-shadow(0 0 20px rgba(102, 126, 234, 0.5));
-            }
-            50% { 
-                filter: brightness(1.2) drop-shadow(0 0 40px rgba(102, 126, 234, 0.8));
-            }
-        }
-
-        .setup-content p {
-            font-size: 1.3rem;
-            margin-bottom: 40px;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-
-        .instructions {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border-radius: 20px;
-            padding: 30px;
-            margin: 30px 0;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .instructions li {
-            list-style: none;
-            margin: 20px 0;
-            display: flex;
-            align-items: center;
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .instructions li::before {
-            content: "✦";
-            margin-right: 15px;
-            color: #667eea;
-            font-size: 1.5rem;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.7; }
-        }
-
-        .start-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 20px 80px;
-            font-size: 1.3rem;
-            font-weight: 700;
-            border-radius: 60px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
-            position: relative;
-            overflow: hidden;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .start-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .start-btn:hover::before {
-            left: 100%;
-        }
-
-        .start-btn:hover {
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 30px 60px rgba(102, 126, 234, 0.6);
-        }
-
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: none;
-            background: radial-gradient(ellipse at center, #0f1922 0%, #000000 100%);
-        }
-
-        #gameContainer.active {
-            display: block;
-        }
-
-        #videoCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            transform: scaleX(-1);
-            opacity: 0.8;
-            transition: opacity 1s ease;
-            z-index: 1;
-        }
-
-        #videoCanvas.calibrating {
-            opacity: 0.8;
-            box-shadow: inset 0 0 100px rgba(102, 126, 234, 0.3);
-        }
-
-        #videoCanvas.hidden {
-            opacity: 0;
-        }
-
-        #gameCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-        }
-
-        #gameUI {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 30px;
-            z-index: 20;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            pointer-events: none;
-        }
-
-        .ui-panel {
-            background: linear-gradient(135deg, rgba(20, 20, 40, 0.9), rgba(40, 20, 60, 0.9));
-            backdrop-filter: blur(20px);
-            padding: 20px 30px;
-            border-radius: 20px;
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-            pointer-events: auto;
-        }
-
-        .score-panel h2 {
-            font-size: 0.8rem;
-            opacity: 0.6;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-        }
-
-        .score-value {
-            font-size: 3rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, #667eea, #f093fb);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
-        }
-
-        .health-bar {
-            width: 200px;
-            height: 25px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            overflow: hidden;
-            margin-top: 10px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .health-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #00ff88, #00bbff);
-            transition: width 0.3s ease;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-        }
-
-        .calibration-overlay {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(ellipse at center, transparent 30%, rgba(102, 126, 234, 0.2) 100%);
-            z-index: 5;
-            display: none;
-            pointer-events: none;
-        }
-
-        .calibration-overlay.active {
-            display: block;
-            animation: pulse-overlay 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-overlay {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
-
-        .calibration-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 2rem;
-            font-weight: bold;
-            text-align: center;
-            z-index: 6;
-            display: none;
-            text-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
-        }
-
-        .calibration-text.active {
-            display: block;
-            animation: float 2s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translate(-50%, -50%); }
-            50% { transform: translate(-50%, -55%); }
-        }
-
-        .calibration-silhouette {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 250px;
-            height: 400px;
-            border: 3px dashed rgba(102, 126, 234, 0.5);
-            border-radius: 20px;
-            z-index: 4;
-            display: none;
-            background: linear-gradient(180deg, transparent, rgba(102, 126, 234, 0.1));
-        }
-
-        .calibration-silhouette.active {
-            display: block;
-            animation: pulse-border 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-border {
-            0%, 100% { 
-                border-color: rgba(102, 126, 234, 0.3);
-                transform: translate(-50%, -50%) scale(1);
-            }
-            50% { 
-                border-color: rgba(102, 126, 234, 0.8);
-                transform: translate(-50%, -50%) scale(1.05);
-            }
-        }
-
-        .loading-spinner {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1001;
-            display: none;
-        }
-
-        .loading-spinner.active {
-            display: block;
-        }
-
-        .spinner-ring {
-            width: 80px;
-            height: 80px;
-            border: 4px solid transparent;
-            border-top-color: #667eea;
-            border-right-color: #764ba2;
-            border-radius: 50%;
-            animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .combo-indicator {
-            position: fixed;
-            top: 150px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 2rem;
-            font-weight: 900;
-            color: white;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            opacity: 0;
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .combo-indicator.show {
-            animation: combo-pop 1s ease;
-        }
-
-        @keyframes combo-pop {
-            0% {
-                opacity: 0;
-                transform: translateX(-50%) scale(0.5);
-            }
-            50% {
-                opacity: 1;
-                transform: translateX(-50%) scale(1.5);
-            }
-            100% {
-                opacity: 0;
-                transform: translateX(-50%) scale(1);
-            }
-        }
-
-        .particle-explosion {
-            position: absolute;
-            pointer-events: none;
-            z-index: 200;
-        }
-
-        .particle {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: linear-gradient(45deg, #667eea, #f093fb);
-            border-radius: 50%;
-            animation: explode 1s ease-out forwards;
-        }
-
-        @keyframes explode {
-            to {
-                transform: translate(var(--x), var(--y)) scale(0);
-                opacity: 0;
-            }
-        }
-
-        .fps-counter {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            color: #00ff88;
-            font-family: monospace;
-            font-size: 14px;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 5px 10px;
-            border-radius: 5px;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Full Version — Camera‑safe • 3D Avatar • Game</title>
+  <meta name="theme-color" content="#0a0f1e"/>
+  <style>
+    :root{--bg:#060912;--fg:#e8edf6;--muted:#9fb1c9;--glass:rgba(255,255,255,.06);--brd:rgba(255,255,255,.14);--ok:#65f4b0;--warn:#ffd266;--err:#ff6b6b}
+    html,body{height:100%}
+    body{margin:0;color:var(--fg);background:
+      radial-gradient(1200px 800px at 70% 10%, #1b2340 0%, #0c1226 40%, #060912 100%),
+      linear-gradient(160deg,#070b16,#0a1222);
+      overflow:hidden;font:500 14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    /* Canvas */
+    #stage{position:fixed;inset:0;display:block;width:100%;height:100%}
+    /* HUD (минимум перекрытий — кнопки поверх всего) */
+    #hud{position:fixed;inset:auto 0 0 0;z-index:10;display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:center;padding:.7rem .9rem;background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.65));backdrop-filter:blur(8px);border-top:1px solid var(--brd)}
+    .btn{appearance:none;border:1px solid var(--brd);background:var(--glass);color:var(--fg);padding:.65rem .9rem;border-radius:12px;cursor:pointer;transition:.2s;user-select:none}
+    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.12)}
+    .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+    .seg{display:flex;gap:.4rem;align-items:center;border:1px solid var(--brd);background:var(--glass);padding:.45rem .65rem;border-radius:12px}
+    .tag{display:inline-flex;gap:.35rem;align-items:center;padding:.25rem .6rem;border:1px solid var(--brd);border-radius:999px;background:var(--glass)}
+    .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+    /* Диагностика сверху — не перехватывает клики по стартовой кнопке */
+    #diagbar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:9;display:flex;flex-wrap:wrap;gap:.4rem}
+    #banner{position:fixed;top:46px;left:50%;transform:translateX(-50%);display:none;gap:.6rem;align-items:center;justify-content:center;padding:.55rem .8rem;border-radius:12px;border:1px solid var(--brd);background:rgba(255,170,0,.08);z-index:9}
+    /* Debug */
+    #cam{position:fixed;right:12px;bottom:92px;width:280px;max-width:40vw;height:auto;border-radius:12px;display:none;border:1px solid var(--brd);box-shadow:0 16px 60px rgba(0,0,0,.6);z-index:8}
+    #debug{position:fixed;left:12px;bottom:92px;width:340px;max-width:44vw;height:auto;display:none;border-radius:12px;border:1px solid var(--brd);z-index:8}
+  </style>
+  <!-- Pose libs -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@3.5.0/dist/pose-detection.min.js"></script>
 </head>
 <body>
-    <div id="setupScreen">
-        <div class="setup-content">
-            <h1>AVATAR ARENA 3D</h1>
-            <p>Станьте своим аватаром в эпической 3D битве!</p>
-            
-            <div class="instructions">
-                <ul>
-                    <li>Установите устройство на расстоянии 2-3 метра</li>
-                    <li>Встаньте так, чтобы всё тело было в кадре</li>
-                    <li>Убедитесь в хорошем освещении</li>
-                    <li>Приготовьтесь к движению!</li>
-                </ul>
-            </div>
-            
-            <button class="start-btn" onclick="initGame()">НАЧАТЬ ИГРУ</button>
-        </div>
-    </div>
+  <canvas id="stage"></canvas>
 
-    <div class="loading-spinner" id="loadingSpinner">
-        <div class="spinner-ring"></div>
-    </div>
+  <!-- Диагностика окружения -->
+  <div id="diagbar"></div>
+  <div id="banner"></div>
 
-    <div id="gameContainer">
-        <video id="videoElement" style="display: none;"></video>
-        <canvas id="videoCanvas"></canvas>
-        <canvas id="gameCanvas"></canvas>
-        
-        <div class="calibration-overlay" id="calibrationOverlay"></div>
-        <div class="calibration-silhouette" id="calibrationSilhouette"></div>
-        <div class="calibration-text" id="calibrationText">Встаньте в рамку для калибровки</div>
-        
-        <div id="gameUI">
-            <div class="ui-panel">
-                <h2>Счёт</h2>
-                <div class="score-value" id="scoreValue">0</div>
-            </div>
-            
-            <div class="ui-panel">
-                <h2>Здоровье</h2>
-                <div class="health-bar">
-                    <div class="health-fill" id="healthFill" style="width: 100%"></div>
-                </div>
-            </div>
-        </div>
+  <!-- HUD: кнопки всегда кликабельны -->
+  <div id="hud">
+    <button class="btn" id="start">▶ Включить камеру</button>
+    <button class="btn" id="pause" disabled>⏸ Пауза</button>
+    <button class="btn" id="dbg">🧩 Отладка</button>
+    <button class="btn" id="toggleCam" disabled>📷 Превью</button>
+    <div class="seg"><label>Сглаживание</label><input id="smooth" type="range" min="0" max="0.98" step="0.02" value="0.55" /></div>
+    <div class="seg"><label>Качество</label><input id="dpr" type="range" min="1" max="2.5" step="0.25" value="1.5" /></div>
+    <span class="tag" id="fps">FPS: --</span>
+    <span class="tag" id="status">🟡 Готово</span>
+  </div>
 
-        <div class="combo-indicator" id="comboIndicator"></div>
-        <div class="fps-counter" id="fpsCounter">FPS: 60</div>
-    </div>
+  <!-- Debug helpers (не мешают клику) -->
+  <video id="cam" playsinline muted autoplay></video>
+  <canvas id="debug"></canvas>
 
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module">
+    // ======== PRE-FLIGHT: гарантируем условия покликово ========
+    const diagbar = document.getElementById('diagbar');
+    const banner = document.getElementById('banner');
+    function pill(text){ const s=document.createElement('span'); s.className='tag'; s.textContent=text; return s; }
+    function showBanner(msg, type='warn'){ banner.textContent=msg; banner.className='tag '+type; banner.style.display='flex'; clearTimeout(showBanner._t); showBanner._t=setTimeout(()=> banner.style.display='none', 6000); }
+    const isTop = (window.top === window);
+    const isSecure = window.isSecureContext || ['localhost','127.0.0.1','::1'].includes(location.hostname);
+    const ua = navigator.userAgent;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    const hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    diagbar.append(pill('Top: '+(isTop?'✅':'❌')));
+    diagbar.append(pill('Secure: '+(isSecure?'✅':'❌')));
+    diagbar.append(pill('getUserMedia: '+(hasMedia?'✅':'❌')));
+    if(isSafari) diagbar.append(pill('Safari'));
 
-    <script>
-        // Глобальные переменные
-        let scene, camera3D, renderer;
-        let avatar, enemies = [], projectiles = [], collectibles = [];
-        let score = 0, health = 100, combo = 0;
-        let videoElement, videoCanvas, videoCtx;
-        let pose, cameraStream;
-        let currentPose = null;
-        let calibrated = false;
-        let gameStarted = false;
-        let lastFrameTime = Date.now();
-        let frameCount = 0;
-        let fps = 60;
+    // ======== THREE.js (шикарная сцена, но лёгкая) ========
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import { SMAAPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/SMAAPass.js';
 
-        // Инициализация Three.js сцены
-        function initThreeJS() {
-            const canvas = document.getElementById('gameCanvas');
-            
-            // Создание сцены
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x0f1922, 10, 100);
-            
-            // Камера
-            camera3D = new THREE.PerspectiveCamera(
-                75,
-                window.innerWidth / window.innerHeight,
-                0.1,
-                1000
-            );
-            camera3D.position.set(0, 5, 15);
-            camera3D.lookAt(0, 0, 0);
-            
-            // Рендерер
-            renderer = new THREE.WebGLRenderer({
-                canvas: canvas,
-                antialias: true,
-                alpha: true
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.5;
-            
-            // Освещение
-            setupLighting();
-            
-            // Создание игрового мира
-            createGameWorld();
-            
-            // Создание аватара
-            createAvatar();
-            
-            // Запуск анимации
-            animate();
-        }
+    const stage = document.getElementById('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas: stage, antialias: true, alpha: true });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        function setupLighting() {
-            // Ambient свет
-            const ambientLight = new THREE.AmbientLight(0x404080, 0.5);
-            scene.add(ambientLight);
-            
-            // Основной направленный свет
-            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
-            mainLight.position.set(10, 20, 10);
-            mainLight.castShadow = true;
-            mainLight.shadow.camera.left = -20;
-            mainLight.shadow.camera.right = 20;
-            mainLight.shadow.camera.top = 20;
-            mainLight.shadow.camera.bottom = -20;
-            mainLight.shadow.mapSize.width = 2048;
-            mainLight.shadow.mapSize.height = 2048;
-            scene.add(mainLight);
-            
-            // Цветные point lights для атмосферы
-            const light1 = new THREE.PointLight(0x667eea, 2, 50);
-            light1.position.set(10, 10, 10);
-            scene.add(light1);
-            
-            const light2 = new THREE.PointLight(0xf093fb, 2, 50);
-            light2.position.set(-10, 10, -10);
-            scene.add(light2);
-            
-            const light3 = new THREE.PointLight(0x00ff88, 1, 30);
-            light3.position.set(0, 5, 0);
-            scene.add(light3);
-            
-            // Анимация света
-            const animateLight = () => {
-                const time = Date.now() * 0.001;
-                light1.position.x = Math.sin(time) * 10;
-                light1.position.z = Math.cos(time) * 10;
-                light2.position.x = Math.sin(time + Math.PI) * 10;
-                light2.position.z = Math.cos(time + Math.PI) * 10;
-            };
-            
-            setInterval(animateLight, 16);
-        }
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050910, 0.05);
 
-        function createGameWorld() {
-            // Пол с отражениями
-            const floorGeometry = new THREE.PlaneGeometry(100, 100);
-            const floorMaterial = new THREE.MeshStandardMaterial({
-                color: 0x1a1a2e,
-                metalness: 0.8,
-                roughness: 0.2,
-                envMapIntensity: 1
-            });
-            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -2;
-            floor.receiveShadow = true;
-            scene.add(floor);
-            
-            // Сетка на полу
-            const gridHelper = new THREE.GridHelper(100, 50, 0x667eea, 0x404080);
-            gridHelper.position.y = -1.99;
-            scene.add(gridHelper);
-            
-            // Floating платформы
-            for (let i = 0; i < 5; i++) {
-                const platformGeometry = new THREE.BoxGeometry(
-                    Math.random() * 3 + 2,
-                    0.5,
-                    Math.random() * 3 + 2
-                );
-                const platformMaterial = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
-                    metalness: 0.5,
-                    roughness: 0.3,
-                    emissive: new THREE.Color().setHSL(Math.random(), 0.7, 0.2),
-                    emissiveIntensity: 0.5
-                });
-                const platform = new THREE.Mesh(platformGeometry, platformMaterial);
-                platform.position.set(
-                    (Math.random() - 0.5) * 30,
-                    Math.random() * 5 - 1,
-                    (Math.random() - 0.5) * 30
-                );
-                platform.castShadow = true;
-                platform.receiveShadow = true;
-                scene.add(platform);
-                
-                // Анимация платформ
-                const animatePlatform = () => {
-                    platform.position.y = Math.sin(Date.now() * 0.001 + i) * 2 - 1;
-                    platform.rotation.y += 0.01;
-                };
-                setInterval(animatePlatform, 16);
-            }
-            
-            // Particle system для фона
-            const particleGeometry = new THREE.BufferGeometry();
-            const particleCount = 1000;
-            const positions = new Float32Array(particleCount * 3);
-            const colors = new Float32Array(particleCount * 3);
-            
-            for (let i = 0; i < particleCount * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 100;
-                positions[i + 1] = Math.random() * 50;
-                positions[i + 2] = (Math.random() - 0.5) * 100;
-                
-                const color = new THREE.Color().setHSL(
-                    0.6 + Math.random() * 0.3,
-                    0.8,
-                    0.6
-                );
-                colors[i] = color.r;
-                colors[i + 1] = color.g;
-                colors[i + 2] = color.b;
-            }
-            
-            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            
-            const particleMaterial = new THREE.PointsMaterial({
-                size: 0.5,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-            });
-            
-            const particles = new THREE.Points(particleGeometry, particleMaterial);
-            scene.add(particles);
-            
-            // Анимация частиц
-            const animateParticles = () => {
-                particles.rotation.y += 0.0005;
-                const positions = particles.geometry.attributes.position.array;
-                for (let i = 1; i < positions.length; i += 3) {
-                    positions[i] -= 0.05;
-                    if (positions[i] < 0) {
-                        positions[i] = 50;
-                    }
-                }
-                particles.geometry.attributes.position.needsUpdate = true;
-            };
-            setInterval(animateParticles, 16);
-        }
+    const cam3d = new THREE.PerspectiveCamera(55, 1, 0.01, 300); cam3d.position.set(0,1.6,4.2);
 
-        function createAvatar() {
-            const avatarGroup = new THREE.Group();
-            
-            // Тело - более детализированное
-            const bodyGeometry = new THREE.CylinderGeometry(0.6, 0.8, 2, 16);
-            const bodyMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0x667eea,
-                metalness: 0.3,
-                roughness: 0.4,
-                clearcoat: 1,
-                clearcoatRoughness: 0.1,
-                emissive: 0x667eea,
-                emissiveIntensity: 0.2
-            });
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.castShadow = true;
-            avatarGroup.add(body);
-            
-            // Голова
-            const headGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-            const headMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0xf093fb,
-                metalness: 0.2,
-                roughness: 0.3,
-                clearcoat: 1,
-                clearcoatRoughness: 0,
-                emissive: 0xf093fb,
-                emissiveIntensity: 0.3
-            });
-            const head = new THREE.Mesh(headGeometry, headMaterial);
-            head.position.y = 1.5;
-            head.castShadow = true;
-            avatarGroup.add(head);
-            
-            // Глаза - светящиеся
-            const eyeGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-            const eyeMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                emissive: 0x00ffff,
-                emissiveIntensity: 2
-            });
-            
-            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-            leftEye.position.set(-0.15, 1.5, 0.4);
-            avatarGroup.add(leftEye);
-            
-            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-            rightEye.position.set(0.15, 1.5, 0.4);
-            avatarGroup.add(rightEye);
-            
-            // Руки - артикулированные
-            const upperArmGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
-            const lowerArmGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 8);
-            const armMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0x764ba2,
-                metalness: 0.4,
-                roughness: 0.3,
-                clearcoat: 0.5
-            });
-            
-            // Левая рука
-            const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
-            leftUpperArm.position.set(-0.8, 0.6, 0);
-            leftUpperArm.rotation.z = Math.PI / 4;
-            leftUpperArm.castShadow = true;
-            avatarGroup.add(leftUpperArm);
-            
-            const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
-            leftLowerArm.position.set(-1.2, 0, 0);
-            leftLowerArm.castShadow = true;
-            avatarGroup.add(leftLowerArm);
-            
-            // Правая рука
-            const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
-            rightUpperArm.position.set(0.8, 0.6, 0);
-            rightUpperArm.rotation.z = -Math.PI / 4;
-            rightUpperArm.castShadow = true;
-            avatarGroup.add(rightUpperArm);
-            
-            const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
-            rightLowerArm.position.set(1.2, 0, 0);
-            rightLowerArm.castShadow = true;
-            avatarGroup.add(rightLowerArm);
-            
-            // Ноги
-            const upperLegGeometry = new THREE.CylinderGeometry(0.2, 0.18, 1, 8);
-            const lowerLegGeometry = new THREE.CylinderGeometry(0.15, 0.13, 1, 8);
-            const legMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0x667eea,
-                metalness: 0.3,
-                roughness: 0.4,
-                clearcoat: 0.5
-            });
-            
-            // Левая нога
-            const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial);
-            leftUpperLeg.position.set(-0.3, -1.5, 0);
-            leftUpperLeg.castShadow = true;
-            avatarGroup.add(leftUpperLeg);
-            
-            const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial);
-            leftLowerLeg.position.set(-0.3, -2.5, 0);
-            leftLowerLeg.castShadow = true;
-            avatarGroup.add(leftLowerLeg);
-            
-            // Правая нога
-            const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial);
-            rightUpperLeg.position.set(0.3, -1.5, 0);
-            rightUpperLeg.castShadow = true;
-            avatarGroup.add(rightUpperLeg);
-            
-            const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial);
-            rightLowerLeg.position.set(0.3, -2.5, 0);
-            rightLowerLeg.castShadow = true;
-            avatarGroup.add(rightLowerLeg);
-            
-            // Эффект свечения вокруг аватара
-            const glowGeometry = new THREE.SphereGeometry(3, 32, 32);
-            const glowMaterial = new THREE.MeshBasicMaterial({
-                color: 0x667eea,
-                transparent: true,
-                opacity: 0.1,
-                side: THREE.BackSide
-            });
-            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-            avatarGroup.add(glow);
-            
-            // Сохраняем части для анимации
-            avatarGroup.userData = {
-                head: head,
-                body: body,
-                leftUpperArm: leftUpperArm,
-                leftLowerArm: leftLowerArm,
-                rightUpperArm: rightUpperArm,
-                rightLowerArm: rightLowerArm,
-                leftUpperLeg: leftUpperLeg,
-                leftLowerLeg: leftLowerLeg,
-                rightUpperLeg: rightUpperLeg,
-                rightLowerLeg: rightLowerLeg,
-                leftEye: leftEye,
-                rightEye: rightEye,
-                glow: glow
-            };
-            
-            avatar = avatarGroup;
-            avatar.position.y = 0;
-            scene.add(avatar);
-        }
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, cam3d));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), 0.8, 0.7, 0.2); composer.addPass(bloom);
+    const smaa = new SMAAPass(window.innerWidth, window.innerHeight); composer.addPass(smaa);
 
-        function createEnemy() {
-            const enemyGroup = new THREE.Group();
-            
-            // Враг - кристаллическая форма
-            const enemyGeometry = new THREE.OctahedronGeometry(0.8, 0);
-            const enemyMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0xff0066,
-                metalness: 0.8,
-                roughness: 0.1,
-                clearcoat: 1,
-                clearcoatRoughness: 0,
-                emissive: 0xff0066,
-                emissiveIntensity: 0.5,
-                transparent: true,
-                opacity: 0.9
-            });
-            const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
-            enemyMesh.castShadow = true;
-            enemyGroup.add(enemyMesh);
-            
-            // Орбитальные частицы вокруг врага
-            for (let i = 0; i < 8; i++) {
-                const orbGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-                const orbMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xff0066,
-                    emissive: 0xff0066,
-                    emissiveIntensity: 2
-                });
-                const orb = new THREE.Mesh(orbGeometry, orbMaterial);
-                const angle = (i / 8) * Math.PI * 2;
-                orb.position.x = Math.cos(angle) * 1.5;
-                orb.position.z = Math.sin(angle) * 1.5;
-                enemyGroup.add(orb);
-            }
-            
-            enemyGroup.position.set(
-                (Math.random() - 0.5) * 20,
-                Math.random() * 3 + 1,
-                -10 - Math.random() * 10
-            );
-            
-            enemyGroup.userData = {
-                speed: 0.05 + Math.random() * 0.05,
-                health: 3,
-                rotationSpeed: 0.02
-            };
-            
-            enemies.push(enemyGroup);
-            scene.add(enemyGroup);
-        }
+    // Lights
+    const hemi = new THREE.HemisphereLight(0x9fc4ff, 0x0a0a12, 0.9); scene.add(hemi);
+    const key = new THREE.DirectionalLight(0xffffff, 1.2); key.position.set(2,5,3); key.castShadow = true; scene.add(key);
+    const rim = new THREE.DirectionalLight(0x63b8ff, 0.7); rim.position.set(-3,4,-2); scene.add(rim);
 
-        function createCollectible() {
-            const collectibleGroup = new THREE.Group();
-            
-            // Коллекционный предмет - светящийся куб
-            const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-            const material = new THREE.MeshPhysicalMaterial({
-                color: 0x00ff88,
-                metalness: 0.5,
-                roughness: 0,
-                clearcoat: 1,
-                clearcoatRoughness: 0,
-                emissive: 0x00ff88,
-                emissiveIntensity: 1,
-                transparent: true,
-                opacity: 0.8
-            });
-            const cube = new THREE.Mesh(geometry, material);
-            cube.castShadow = true;
-            collectibleGroup.add(cube);
-            
-            // Внешнее кольцо
-            const ringGeometry = new THREE.TorusGeometry(0.8, 0.1, 8, 32);
-            const ringMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                emissive: 0x00ffff,
-                emissiveIntensity: 1,
-                transparent: true,
-                opacity: 0.6
-            });
-            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-            collectibleGroup.add(ring);
-            
-            collectibleGroup.position.set(
-                (Math.random() - 0.5) * 15,
-                Math.random() * 3 + 1,
-                (Math.random() - 0.5) * 15
-            );
-            
-            collectibleGroup.userData = {
-                value: 10 + Math.floor(Math.random() * 40),
-                collected: false
-            };
-            
-            collectibles.push(collectibleGroup);
-            scene.add(collectibleGroup);
-        }
+    // Neon grid floor (shader)
+    const gridGeo = new THREE.PlaneGeometry(40, 400, 40, 400);
+    const gridMat = new THREE.ShaderMaterial({
+      uniforms: { t: { value: 0 }, col1: { value: new THREE.Color('#0cc2ff') }, col2: { value: new THREE.Color('#00ffa8') } },
+      transparent: true,
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `varying vec2 vUv; uniform float t; uniform vec3 col1; uniform vec3 col2; 
+        float line(float v, float w){ float d=abs(fract(v)-.5); return smoothstep(w, 0.0, d); }
+        void main(){ float z = vUv.y*40.0 + t*6.0; float x = vUv.x*20.0; 
+          float g = max(line(z, .06), line(x, .08)); vec3 col = mix(col1,col2, vUv.y);
+          gl_FragColor = vec4(col * g * 0.8, g*0.9);
+        }`
+    });
+    const grid = new THREE.Mesh(gridGeo, gridMat); grid.rotation.x = -Math.PI/2; grid.position.y = 0; grid.receiveShadow = true; scene.add(grid);
 
-        function createProjectile(position, direction) {
-            const projectileGroup = new THREE.Group();
-            
-            // Снаряд - энергетический шар
-            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-            const material = new THREE.MeshBasicMaterial({
-                color: 0x00bbff,
-                emissive: 0x00bbff,
-                emissiveIntensity: 2,
-                transparent: true,
-                opacity: 0.8
-            });
-            const sphere = new THREE.Mesh(geometry, material);
-            projectileGroup.add(sphere);
-            
-            // След частиц
-            const trailGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-            const trailMaterial = new THREE.MeshBasicMaterial({
-                color: 0x667eea,
-                transparent: true,
-                opacity: 0.4
-            });
-            for (let i = 0; i < 3; i++) {
-                const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-                trail.position.z = i * 0.3;
-                projectileGroup.add(trail);
-            }
-            
-            projectileGroup.position.copy(position);
-            projectileGroup.userData = {
-                direction: direction.normalize(),
-                speed: 0.5,
-                lifetime: 100
-            };
-            
-            projectiles.push(projectileGroup);
-            scene.add(projectileGroup);
-        }
+    // Lanes
+    const laneMat = new THREE.MeshStandardMaterial({ color: 0x0e2236, metalness:.4, roughness:.25, emissive:0x071a2a, emissiveIntensity: 1.3 });
+    for (let i=-2;i<=2;i+=2){ const lane = new THREE.Mesh(new THREE.BoxGeometry(0.05, .01, 400), laneMat); lane.position.set(i, .005, 0); scene.add(lane); }
 
-        function updateAvatar(landmarks) {
-            if (!avatar || !landmarks) return;
-            
-            const parts = avatar.userData;
-            
-            // Голова
-            if (landmarks[0]) {
-                parts.head.position.x = (landmarks[0].x - 0.5) * 10;
-                parts.head.position.y = (0.5 - landmarks[0].y) * 10 + 1.5;
-                parts.head.rotation.y = (landmarks[0].x - 0.5) * 2;
-            }
-            
-            // Тело
-            if (landmarks[11] && landmarks[12]) {
-                const centerX = (landmarks[11].x + landmarks[12].x) / 2;
-                const centerY = (landmarks[11].y + landmarks[12].y) / 2;
-                avatar.position.x = (centerX - 0.5) * 15;
-                avatar.position.z = (centerY - 0.5) * 5;
-                
-                // Наклон тела
-                const shoulderAngle = Math.atan2(
-                    landmarks[12].y - landmarks[11].y,
-                    landmarks[12].x - landmarks[11].x
-                );
-                parts.body.rotation.z = -shoulderAngle * 0.5;
-            }
-            
-            // Левая рука
-            if (landmarks[11] && landmarks[13] && landmarks[15]) {
-                const upperAngle = Math.atan2(
-                    landmarks[13].y - landmarks[11].y,
-                    landmarks[13].x - landmarks[11].x
-                );
-                parts.leftUpperArm.rotation.z = upperAngle + Math.PI / 2;
-                
-                const lowerAngle = Math.atan2(
-                    landmarks[15].y - landmarks[13].y,
-                    landmarks[15].x - landmarks[13].x
-                );
-                parts.leftLowerArm.position.x = landmarks[13].x * 10 - 5;
-                parts.leftLowerArm.position.y = (0.5 - landmarks[13].y) * 10;
-                parts.leftLowerArm.rotation.z = lowerAngle + Math.PI / 2;
-            }
-            
-            // Правая рука
-            if (landmarks[12] && landmarks[14] && landmarks[16]) {
-                const upperAngle = Math.atan2(
-                    landmarks[14].y - landmarks[12].y,
-                    landmarks[14].x - landmarks[12].x
-                );
-                parts.rightUpperArm.rotation.z = upperAngle + Math.PI / 2;
-                
-                const lowerAngle = Math.atan2(
-                    landmarks[16].y - landmarks[14].y,
-                    landmarks[16].x - landmarks[14].x
-                );
-                parts.rightLowerArm.position.x = landmarks[14].x * 10 - 5;
-                parts.rightLowerArm.position.y = (0.5 - landmarks[14].y) * 10;
-                parts.rightLowerArm.rotation.z = lowerAngle + Math.PI / 2;
-            }
-            
-            // Ноги
-            if (landmarks[23] && landmarks[25] && landmarks[27]) {
-                const upperAngle = Math.atan2(
-                    landmarks[25].y - landmarks[23].y,
-                    landmarks[25].x - landmarks[23].x
-                );
-                parts.leftUpperLeg.rotation.z = upperAngle - Math.PI / 2;
-                
-                const lowerAngle = Math.atan2(
-                    landmarks[27].y - landmarks[25].y,
-                    landmarks[27].x - landmarks[25].x
-                );
-                parts.leftLowerLeg.rotation.z = lowerAngle - Math.PI / 2;
-            }
-            
-            if (landmarks[24] && landmarks[26] && landmarks[28]) {
-                const upperAngle = Math.atan2(
-                    landmarks[26].y - landmarks[24].y,
-                    landmarks[26].x - landmarks[24].x
-                );
-                parts.rightUpperLeg.rotation.z = upperAngle - Math.PI / 2;
-                
-                const lowerAngle = Math.atan2(
-                    landmarks[28].y - landmarks[26].y,
-                    landmarks[28].x - landmarks[26].x
-                );
-                parts.rightLowerLeg.rotation.z = lowerAngle - Math.PI / 2;
-            }
-            
-            // Эффект свечения при движении
-            const movement = Math.abs(landmarks[0].x - 0.5) + Math.abs(landmarks[0].y - 0.5);
-            parts.glow.material.opacity = Math.min(0.3, movement * 0.5);
-            
-            // Стрельба при поднятии руки
-            if (landmarks[16] && landmarks[16].y < 0.3) {
-                if (!avatar.userData.lastShot || Date.now() - avatar.userData.lastShot > 500) {
-                    const direction = new THREE.Vector3(0, 0, -1);
-                    createProjectile(avatar.position.clone(), direction);
-                    avatar.userData.lastShot = Date.now();
-                }
-            }
-        }
+    // Avatar (capsules + head)
+    const player = new THREE.Group(); scene.add(player);
+    const limbMat = new THREE.MeshPhysicalMaterial({ color: 0x9ad8ff, metalness:.9, roughness:.1, clearcoat:1, clearcoatRoughness:.03, transmission:.04, thickness:.6, emissive:0x0a2740, emissiveIntensity:1.3 });
+    const torsoMat = new THREE.MeshPhysicalMaterial({ color: 0x7df0c8, metalness:.8, roughness:.15, clearcoat:1, emissive:0x0b3a2a, emissiveIntensity:1.2 });
+    const headMat  = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness:.4, roughness:.25, emissive:0x111111, emissiveIntensity:.7 });
 
-        function updateGame() {
-            // Обновление врагов
-            enemies.forEach((enemy, index) => {
-                enemy.position.z += enemy.userData.speed;
-                enemy.rotation.y += enemy.userData.rotationSpeed;
-                enemy.rotation.x += enemy.userData.rotationSpeed * 0.5;
-                
-                // Анимация орбитальных частиц
-                enemy.children.forEach((child, i) => {
-                    if (i > 0) {
-                        const angle = (Date.now() * 0.002 + (i / 8) * Math.PI * 2);
-                        child.position.x = Math.cos(angle) * 1.5;
-                        child.position.z = Math.sin(angle) * 1.5;
-                        child.position.y = Math.sin(angle * 2) * 0.5;
-                    }
-                });
-                
-                // Проверка столкновения с аватаром
-                if (avatar && enemy.position.distanceTo(avatar.position) < 2) {
-                    health = Math.max(0, health - 10);
-                    document.getElementById('healthFill').style.width = health + '%';
-                    scene.remove(enemy);
-                    enemies.splice(index, 1);
-                    
-                    // Эффект урона
-                    createParticleExplosion(enemy.position);
-                }
-                
-                // Удаление врагов за пределами
-                if (enemy.position.z > 20) {
-                    scene.remove(enemy);
-                    enemies.splice(index, 1);
-                }
-            });
-            
-            // Обновление снарядов
-            projectiles.forEach((projectile, pIndex) => {
-                projectile.position.add(
-                    projectile.userData.direction.clone().multiplyScalar(projectile.userData.speed)
-                );
-                projectile.userData.lifetime--;
-                
-                // След частиц
-                projectile.children.forEach((child, i) => {
-                    if (i > 0) {
-                        child.material.opacity = 0.4 - (i * 0.1);
-                    }
-                });
-                
-                // Проверка попадания во врагов
-                enemies.forEach((enemy, eIndex) => {
-                    if (projectile.position.distanceTo(enemy.position) < 1.5) {
-                        enemy.userData.health--;
-                        if (enemy.userData.health <= 0) {
-                            score += 100;
-                            combo++;
-                            updateScore();
-                            showCombo();
-                            createParticleExplosion(enemy.position);
-                            scene.remove(enemy);
-                            enemies.splice(eIndex, 1);
-                        }
-                        scene.remove(projectile);
-                        projectiles.splice(pIndex, 1);
-                    }
-                });
-                
-                // Удаление старых снарядов
-                if (projectile.userData.lifetime <= 0) {
-                    scene.remove(projectile);
-                    projectiles.splice(pIndex, 1);
-                }
-            });
-            
-            // Обновление коллекционных предметов
-            collectibles.forEach((collectible, index) => {
-                collectible.rotation.y += 0.02;
-                collectible.position.y += Math.sin(Date.now() * 0.002) * 0.01;
-                
-                // Вращение кольца
-                if (collectible.children[1]) {
-                    collectible.children[1].rotation.x += 0.03;
-                    collectible.children[1].rotation.z += 0.02;
-                }
-                
-                // Проверка сбора
-                if (avatar && collectible.position.distanceTo(avatar.position) < 2) {
-                    score += collectible.userData.value;
-                    updateScore();
-                    createParticleExplosion(collectible.position, 0x00ff88);
-                    scene.remove(collectible);
-                    collectibles.splice(index, 1);
-                    
-                    // Восстановление здоровья
-                    health = Math.min(100, health + 10);
-                    document.getElementById('healthFill').style.width = health + '%';
-                }
-            });
-            
-            // Spawn новых объектов
-            if (Math.random() < 0.02 && enemies.length < 10) {
-                createEnemy();
-            }
-            
-            if (Math.random() < 0.01 && collectibles.length < 5) {
-                createCollectible();
-            }
-        }
+    function capsule(radius=0.06, height=1){
+      const g = new THREE.CapsuleGeometry(radius, Math.max(0,height-2*radius), 12, 18);
+      const m = new THREE.Mesh(g, limbMat); m.castShadow=true; m.frustumCulled=false; return m;
+    }
+    const joints = {}; const jnames=['nose','left_shoulder','right_shoulder','left_elbow','right_elbow','left_wrist','right_wrist','left_hip','right_hip','left_knee','right_knee','left_ankle','right_ankle','left_foot_index','right_foot_index'];
+    jnames.forEach(n=>{ const s=new THREE.Mesh(new THREE.SphereGeometry(0.025), new THREE.MeshStandardMaterial({ color:0x6fb0ff, emissive:0x0a1f3a, emissiveIntensity:1.4 })); s.castShadow=false; player.add(s); joints[n]=s; });
+    const limbs={}; function makeLimb(){ const g=new THREE.Group(); const cap=capsule(); g.add(cap); g.userData.cap=cap; player.add(g); return g; }
+    const limbPairs=[['left_shoulder','left_elbow'],['left_elbow','left_wrist'],['right_shoulder','right_elbow'],['right_elbow','right_wrist'],['left_hip','left_knee'],['left_knee','left_ankle'],['right_hip','right_knee'],['right_knee','right_ankle'],['left_shoulder','right_shoulder'],['left_hip','right_hip']];
+    limbPairs.forEach(p=> limbs[p.join('-')] = makeLimb());
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.45,0.6,0.25), torsoMat); torso.castShadow=true; player.add(torso);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 18), headMat); head.castShadow=true; player.add(head);
+    const visor = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.018, 16, 64), new THREE.MeshStandardMaterial({ color:0x79c7ff, metalness:.7, roughness:.2, emissive:0x0da2ff, emissiveIntensity:2 })); head.add(visor); visor.rotation.x=Math.PI/2;
+    function updateCapsule(g,a,b){ const v=new THREE.Vector3().subVectors(b,a); const len=v.length(); const mid=new THREE.Vector3().addVectors(a,b).multiplyScalar(.5); g.position.copy(mid); const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), v.clone().normalize()); g.setRotationFromQuaternion(q); g.userData.cap.scale.set(1, Math.max(0.1,len), 1); }
 
-        function createParticleExplosion(position, color = 0xff0066) {
-            const particleCount = 20;
-            const particles = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                const geometry = new THREE.SphereGeometry(0.1, 4, 4);
-                const material = new THREE.MeshBasicMaterial({
-                    color: color,
-                    transparent: true,
-                    opacity: 1
-                });
-                const particle = new THREE.Mesh(geometry, material);
-                particle.position.copy(position);
-                
-                const velocity = new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.5,
-                    Math.random() * 0.5,
-                    (Math.random() - 0.5) * 0.5
-                );
-                
-                particle.userData = { velocity: velocity, lifetime: 30 };
-                particles.push(particle);
-                scene.add(particle);
-            }
-            
-            // Анимация частиц
-            const animateParticles = setInterval(() => {
-                particles.forEach((particle, index) => {
-                    particle.position.add(particle.userData.velocity);
-                    particle.userData.velocity.y -= 0.02;
-                    particle.userData.lifetime--;
-                    particle.material.opacity = particle.userData.lifetime / 30;
-                    
-                    if (particle.userData.lifetime <= 0) {
-                        scene.remove(particle);
-                        particles.splice(index, 1);
-                    }
-                });
-                
-                if (particles.length === 0) {
-                    clearInterval(animateParticles);
-                }
-            }, 16);
-        }
+    // Obstacles
+    const obstacles=[]; const oGeo=new THREE.BoxGeometry(.6,.6,.6);
+    function spawnObstacle(){ const m = new THREE.MeshStandardMaterial({ color:0x203d57, metalness:.6, roughness:.2, emissive:0x0a2030, emissiveIntensity: 1.8 }); const box=new THREE.Mesh(oGeo,m); box.castShadow=true; const laneX=[-2,0,2][Math.floor(Math.random()*3)]; box.position.set(laneX,.3,-22-Math.random()*12); scene.add(box); obstacles.push(box); }
 
-        function updateScore() {
-            document.getElementById('scoreValue').textContent = score;
-        }
+    // Debug
+    const video = document.getElementById('cam'); // фон не рендерим — только аватар
+    const dbg = document.getElementById('debug'); const dctx = dbg.getContext('2d');
 
-        function showCombo() {
-            const indicator = document.getElementById('comboIndicator');
-            indicator.textContent = `COMBO x${combo}!`;
-            indicator.classList.add('show');
-            
-            setTimeout(() => {
-                indicator.classList.remove('show');
-            }, 1000);
-            
-            setTimeout(() => {
-                combo = 0;
-            }, 3000);
-        }
+    // UI refs
+    const startBtn=document.getElementById('start'); const pauseBtn=document.getElementById('pause'); const dbgBtn=document.getElementById('dbg'); const toggleCamBtn=document.getElementById('toggleCam'); const smoothInput=document.getElementById('smooth'); const dprInput=document.getElementById('dpr'); const statusPill=document.getElementById('status'); const fpsPill=document.getElementById('fps');
+    function setStatus(msg, cls=''){ statusPill.textContent=msg; statusPill.className='tag '+cls; }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            // Обновление FPS
-            frameCount++;
-            const now = Date.now();
-            if (now - lastFrameTime >= 1000) {
-                fps = frameCount;
-                frameCount = 0;
-                lastFrameTime = now;
-                document.getElementById('fpsCounter').textContent = `FPS: ${fps}`;
-            }
-            
-            if (gameStarted) {
-                updateGame();
-            }
-            
-            // Вращение камеры для эффекта
-            if (!calibrated) {
-                camera3D.position.x = Math.sin(Date.now() * 0.0005) * 2;
-                camera3D.position.z = 15 + Math.cos(Date.now() * 0.0005) * 2;
-                camera3D.lookAt(0, 0, 0);
-            }
-            
-            renderer.render(scene, camera3D);
-        }
+    function fit(){ const w=innerWidth,h=innerHeight; const dpr=Number(dprInput.value)||1; renderer.setSize(w,h,false); renderer.setPixelRatio(dpr); cam3d.aspect=w/h; cam3d.updateProjectionMatrix(); composer.setSize(w,h); dbg.width=Math.min(520, Math.floor(w*.48)); dbg.height=Math.floor(dbg.width*9/16); }
+    addEventListener('resize', fit); fit();
 
-        // MediaPipe Pose Detection
-        function onPoseResults(results) {
-            videoCtx.save();
-            videoCtx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
-            
-            // Отображаем видео во время калибровки
-            if (!calibrated) {
-                videoCtx.globalAlpha = 0.8;
-                videoCtx.drawImage(results.image, 0, 0, videoCanvas.width, videoCanvas.height);
-            } else {
-                videoCtx.globalAlpha = 0;
-            }
-            
-            if (results.poseLandmarks) {
-                currentPose = results.poseLandmarks;
-                
-                // Рисуем скелет во время калибровки
-                if (!calibrated) {
-                    videoCtx.globalAlpha = 1;
-                    videoCtx.shadowBlur = 10;
-                    videoCtx.shadowColor = '#667eea';
-                    
-                    drawConnectors(videoCtx, results.poseLandmarks, POSE_CONNECTIONS, {
-                        color: '#667eea',
-                        lineWidth: 3
-                    });
-                    
-                    drawLandmarks(videoCtx, results.poseLandmarks, {
-                        color: '#f093fb',
-                        fillColor: '#ffffff',
-                        lineWidth: 2,
-                        radius: 5
-                    });
-                }
-                
-                // Обновляем аватар
-                if (avatar) {
-                    updateAvatar(results.poseLandmarks);
-                }
-                
-                // Завершение калибровки
-                if (!calibrated && currentPose) {
-                    setTimeout(() => {
-                        calibrated = true;
-                        gameStarted = true;
-                        document.getElementById('calibrationOverlay').classList.remove('active');
-                        document.getElementById('calibrationSilhouette').classList.remove('active');
-                        document.getElementById('calibrationText').classList.remove('active');
-                        document.getElementById('videoCanvas').classList.add('hidden');
-                    }, 3000);
-                }
-            }
-            
-            videoCtx.restore();
-        }
+    let running=false, detector=null, ema={}, smoothK=.55, last=performance.now();
+    smoothInput.oninput=()=> smoothK=Number(smoothInput.value);
+    dprInput.oninput=fit;
+    dbgBtn.onclick=()=>{ const vis=dbg.style.display!=='none'; dbg.style.display=vis?'none':'block'; };
+    toggleCamBtn.onclick=()=>{ const vis=video.style.display!=='none'; video.style.display=vis?'none':'block'; };
+    addEventListener('keydown', (e)=>{ if(e.code==='Space'){ ema={}; showBanner('Калибровка выполнена','ok'); }});
 
-        async function initGame() {
-            document.getElementById('setupScreen').classList.add('hidden');
-            document.getElementById('gameContainer').classList.add('active');
-            document.getElementById('loadingSpinner').classList.add('active');
-            
-            // Показываем элементы калибровки
-            setTimeout(() => {
-                document.getElementById('calibrationOverlay').classList.add('active');
-                document.getElementById('calibrationSilhouette').classList.add('active');
-                document.getElementById('calibrationText').classList.add('active');
-            }, 500);
-            
-            // Инициализация Three.js
-            initThreeJS();
-            
-            // Инициализация видео
-            videoElement = document.getElementById('videoElement');
-            videoCanvas = document.getElementById('videoCanvas');
-            videoCtx = videoCanvas.getContext('2d');
-            
-            videoCanvas.width = window.innerWidth;
-            videoCanvas.height = window.innerHeight;
-            
-            // Инициализация MediaPipe
-            pose = new Pose({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-                }
-            });
-            
-            pose.setOptions({
-                modelComplexity: 2,
-                smoothLandmarks: true,
-                enableSegmentation: false,
-                smoothSegmentation: false,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-            
-            pose.onResults(onPoseResults);
-            
-            // Запуск камеры
-            cameraStream = new Camera(videoElement, {
-                onFrame: async () => {
-                    await pose.send({image: videoElement});
-                },
-                width: 1280,
-                height: 720
-            });
-            
-            try {
-                await cameraStream.start();
-                document.getElementById('loadingSpinner').classList.remove('active');
-            } catch (error) {
-                console.error('Camera error:', error);
-                alert('Не удалось получить доступ к камере. Пожалуйста, разрешите доступ и перезагрузите страницу.');
-            }
-        }
+    // ======== Camera (строго по клику) ========
+    video.muted=true; video.setAttribute('muted',''); video.playsInline=true; video.setAttribute('playsinline','');
+    async function requestCamera(){
+      if(!(window.isSecureContext || ['localhost','127.0.0.1','::1'].includes(location.hostname))) throw new Error('Нужен HTTPS или localhost');
+      if(!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia недоступен в этом браузере');
+      try{ const devices = await navigator.mediaDevices.enumerateDevices(); const hasCam = devices.some(d=>d.kind==='videoinput'); if(!hasCam) showBanner('Камера не обнаружена (videoinput)', 'err'); }catch{}
+      const constraints={ video:{ facingMode:'user', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream; await video.play().catch(()=>{});
+      return stream;
+    }
 
-        // Обработка изменения размера окна
-        window.addEventListener('resize', () => {
-            if (camera3D && renderer) {
-                camera3D.aspect = window.innerWidth / window.innerHeight;
-                camera3D.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }
-            
-            if (videoCanvas) {
-                videoCanvas.width = window.innerWidth;
-                videoCanvas.height = window.innerHeight;
-            }
-        });
+    // ======== Pose Detector ========
+    async function ensureDetector(){ const BlazePose = poseDetection.SupportedModels.BlazePose; detector = await poseDetection.createDetector(BlazePose,{ runtime:'mediapipe', solutionPath:'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404', modelType:'heavy', enableSmoothing:true, minPoseScore:0.4 }); }
+
+    // ======== Pose → Avatar ========
+    const V3=THREE.Vector3; function lerp(a,b,t){return a+(b-a)*t};
+    function vOf(name, list){ const k=list.find(p=>p.name===name)||list[0]; const out=new V3(k.x||0, k.y||0, k.z||0); out.set(out.x, -out.y, -out.z); return out; }
+    function smooth(name, cur){ const prev=ema[name]||cur.clone(); const out=prev.clone().lerp(cur, 1-smoothK); ema[name]=out.clone(); return out; }
+    function updateFromPose(pose){ if(!pose) return; const k2=pose.keypoints||[]; const k3=pose.keypoints3D?.length?pose.keypoints3D:k2.map(k=>({name:k.name,x:k.x/(video.videoWidth||1),y:k.y/(video.videoHeight||1),z:0}));
+      const j={}; for(const n of jnames){ j[n]=smooth(n, vOf(n,k3)); joints[n].position.copy(j[n]); }
+      const hip = smooth('hip_center', j.left_hip.clone().add(j.right_hip).multiplyScalar(.5));
+      const sh  = smooth('shoulder_center', j.left_shoulder.clone().add(j.right_shoulder).multiplyScalar(.5));
+      const feetY = Math.max(j.left_foot_index.y, j.right_foot_index.y, j.left_ankle.y, j.right_ankle.y);
+      const headY = Math.min(j.nose.y, j.left_shoulder.y-0.25, j.right_shoulder.y-0.25);
+      const height=Math.max(.6, (feetY-headY)); const scale=1.8/height; player.scale.lerp(new THREE.Vector3(scale,scale,scale), .15);
+      limbPairs.forEach(([a,b])=> updateCapsule(limbs[a+'-'+b], j[a], j[b]));
+      torso.position.copy(sh.clone().add(hip).multiplyScalar(.5)); torso.scale.set(1, j.left_shoulder.distanceTo(j.right_shoulder)*1.6, 1);
+      const span = j.left_shoulder.distanceTo(j.right_shoulder);
+      head.position.copy(j.nose.clone().add(new V3(0, span*.38, 0))); head.scale.setScalar(THREE.MathUtils.clamp(span*0.75, 0.12, 0.38));
+      // Controls
+      const lean = THREE.MathUtils.clamp((j.right_shoulder.y - j.left_shoulder.y)*3.5, -1.5, 1.5); player.position.x = lerp(player.position.x, lean*2.2, .15);
+      const wristsUp = (Math.min(j.left_wrist.y, j.right_wrist.y) < (head.position.y - span*0.15)); if(wristsUp && player.userData.grounded!==false){ player.userData.vy=0.2; player.userData.grounded=false; }
+      player.userData.duck = (hip.y < sh.y - span*0.62);
+    }
+
+    // ======== Physics + Gameplay ========
+    function updatePhysics(dt){ const g=-0.95; player.userData.vy=(player.userData.vy||0)+g*dt; const y=(player.position.y||0)+(player.userData.vy||0); if(y<=0){ player.position.y=0; player.userData.vy=0; player.userData.grounded=true; } else { player.position.y=y; } }
+    let score=0, spawnAcc=0;
+
+    async function loop(){
+      requestAnimationFrame(loop);
+      const now=performance.now(); const dt=Math.min(.05,(now-last)/1000); last=now; gridMat.uniforms.t.value += dt;
+      if(running && detector && video.readyState>=2){ try{ const poses = await detector.estimatePoses(video,{flipHorizontal:true}); updateFromPose(poses[0]); }catch(e){} }
+      if(running){ updatePhysics(dt); spawnAcc+=dt; if(spawnAcc>1.05){ spawnAcc=0; spawnObstacle(); }
+        for(let i=obstacles.length-1;i>=0;i--){ const o=obstacles[i]; o.position.z += 6*dt; const px=player.position.x, py=player.position.y+1.0; if(Math.abs(o.position.x-px)<.46 && Math.abs(o.position.z-0)<.42){ const duck=player.userData.duck; const jumping=py>0.85; if(!(duck||jumping)){ for(const x of obstacles){ scene.remove(x); } obstacles.length=0; score=0; setStatus('Столкновение — счёт: 0','err'); break; } } if(o.position.z>3){ scene.remove(o); obstacles.splice(i,1); score++; setStatus('Счёт: '+score,'ok'); } }
+      }
+      composer.render(); const fps=Math.round(1000/(now-(loop._last||now-16))); loop._last=now; fpsPill.textContent='FPS: '+fps;
+    }
+    loop();
+
+    const ro=new ResizeObserver(()=>fit()); ro.observe(document.body);
+
+    // ======== START/PAUSE (строго по клику) ========
+    startBtn.onclick = async ()=>{
+      try{
+        setStatus('Запрашиваю камеру…','warn'); startBtn.disabled=true;
+        await requestCamera(); toggleCamBtn.disabled=false;
+        setStatus('Загружаю трекинг…','warn'); await ensureDetector();
+        setStatus('Камера ок • трекинг ок','ok'); running=true; pauseBtn.disabled=false;
+      }catch(err){
+        console.error(err); startBtn.disabled=false; let msg=String(err && err.message || err);
+        if(/NotAllowedError|denied|Permission/i.test(msg)) msg='Доступ отклонён. Разреши камеру в настройках сайта/браузера.';
+        if(/secure|HTTPS|localhost|http\:|file\:\/\//i.test(msg)) msg='Нужен HTTPS (или localhost). На http/file:// камера не работает.';
+        if(/NotFoundError|device|videoinput/i.test(msg)) msg='Камера не найдена. Проверь подключение/разрешения системы.';
+        if(!isTop) msg+=' (страница во фрейме? добавь allow="camera; microphone")';
+        setStatus('Ошибка: '+msg,'err'); showBanner('❌ '+msg,'err');
+      }
+    };
+    pauseBtn.onclick=()=>{ running=!running; pauseBtn.textContent=running?'⏸ Пауза':'▶ Продолжить'; };
+  </script>
+</body>
+</html>
