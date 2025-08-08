@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Full‑Body Game + 3D Avatar (WebCam)</title>
+  <style>
+    :root{--bg:#0b0b12;--fg:#e9ecf1;--accent:#7ad7ff;--ok:#64f4ac;--warn:#ffb84d;--err:#ff5b5b}
+    html,body{height:100%;}
+    body{margin:0;background:radial-gradient(1200px 800px at 70% 10%, #141428 0%, #0b0b12 40%, #07070d 100%);color:var(--fg);font:500 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial}
+    #app{position:fixed;inset:0;display:grid;grid-template-areas:'stage' 'hud';grid-template-rows:1fr auto}
+    canvas#stage{grid-area:stage;display:block;width:100%;height:100%}
+    #hud{grid-area:hud;display:flex;gap:.5rem;align-items:center;justify-content:center;padding:.6rem .8rem;background:linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,.25));backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
+    #hud button,#hud .segment{appearance:none;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--fg);padding:.6rem .8rem;border-radius:12px;cursor:pointer;transition:.2s transform,.2s background,.2s border-color;user-select:none}
+    #hud button:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}
+    #hud .segment{display:flex;gap:.25rem;align-items:center}
+    #hud .segment label{opacity:.75}
+    #log{position:fixed;inset:auto 10px 70px 10px;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;justify-content:center}
+    #log .pill{padding:.3rem .6rem;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12)}
+    #overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
+    .card{max-width:840px;width:min(92vw,840px);background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px 18px 16px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+    .card h1{margin:.2rem 0 0;font-weight:800;letter-spacing:.2px}
+    .grid{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+    .grid p{margin:.2rem 0;opacity:.9}
+    .muted{opacity:.65}
+    .kbd{font-weight:700;background:rgba(255,255,255,.08);padding:.1rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.12)}
+    #start{pointer-events:auto}
+    #debug{position:fixed;inset:0;pointer-events:none}
+    video#cam{position:fixed;right:12px;bottom:90px;width:240px;max-width:34vw;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 40px rgba(0,0,0,.5);display:none}
+    .tag{display:inline-flex;gap:.35rem;align-items:center;padding:.25rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06)}
+    .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+  </style>
+  <!-- External libs (globals) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@3.5.0/dist/pose-detection.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="stage"></canvas>
+    <div id="hud">
+      <button id="start">▶ Включить камеру</button>
+      <button id="pause" disabled>⏸ Пауза</button>
+      <button id="dbg">🧩 Отладка</button>
+      <button id="toggleCam">📷 Превью</button>
+      <div class="segment" title="Сглаживание позы">
+        <label>Сглаживание</label>
+        <input id="smooth" type="range" min="0" max="0.98" step="0.02" value="0.6" />
+      </div>
+      <div class="segment" title="Качество рендера">
+        <label>Качество</label>
+        <input id="dpr" type="range" min="1" max="2" step="0.25" value="1.25" />
+      </div>
+      <span class="tag" id="fps">FPS: --</span>
+      <span class="tag" id="status"><span class="dot">🟡</span> Готово</span>
+    </div>
+  </div>
+
+  <!-- Instruction overlay -->
+  <div id="overlay">
+    <div class="card">
+      <h1>Игра с управлением телом + 3D‑аватар</h1>
+      <div class="grid">
+        <p>1) Поставь ноут на уровне груди, отойди на 2–3 метра так, чтобы в кадре было видно всё тело (голова, ступни). Освещение – равномерное спереди.</p>
+        <p>2) Нажми <span class="kbd">Включить камеру</span>, дай доступ. В Safari/мобилках нужен HTTPS и реальный клик.</p>
+        <p>3) Подними руки над головой – запустится калибровка. Левый/правый наклон – смещение по дорожке. Руки вверх – прыжок. Присед – слайд.</p>
+        <p class="muted">Фон камеры не показывается – в игре рендерится только 3D‑аватар. Превью можно включить кнопкой «Превью».</p>
+      </div>
+    </div>
+  </div>
+
+  <video id="cam" playsinline muted></video>
+  <canvas id="debug"></canvas>
+
+  <script type="module">
+    // ====== THREE.js scene ======
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+
+    const stage = document.getElementById('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas: stage, antialias: true, alpha: true });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = new THREE.Scene();
+    const camera3d = new THREE.PerspectiveCamera(55, 1, 0.01, 200);
+    camera3d.position.set(0, 1.55, 3.8);
+
+    const controls = new OrbitControls(camera3d, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enableZoom = false;
+    controls.minPolarAngle = Math.PI*0.2;
+    controls.maxPolarAngle = Math.PI*0.49;
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera3d));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), 0.6, 0.8, 0.2);
+    composer.addPass(bloom);
+
+    // Lights & env
+    const hemi = new THREE.HemisphereLight(0xb8c8ff, 0x0a0a12, 0.9); scene.add(hemi);
+    const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(2, 5, 3); key.castShadow = true; scene.add(key);
+    const rim = new THREE.DirectionalLight(0x8fd5ff, 0.6); rim.position.set(-3, 4, -2); scene.add(rim);
+
+    // Ground & lane markers
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 200), new THREE.MeshStandardMaterial({ color: 0x0c0e16, metalness:.1, roughness:.9 }));
+    ground.rotation.x = -Math.PI/2; ground.position.y = 0; ground.receiveShadow = true; scene.add(ground);
+
+    const laneMat = new THREE.MeshStandardMaterial({ color: 0x12304a, metalness:.3, roughness:.2, emissive:0x061628, emissiveIntensity:1.2 });
+    for (let i=-2;i<=2;i+=2){
+      const lane = new THREE.Mesh(new THREE.BoxGeometry(0.05, .01, 200), laneMat);
+      lane.position.set(i, .005, 0); lane.castShadow = false; lane.receiveShadow = true; scene.add(lane);
+    }
+
+    // Avatar materials
+    const limbMat = new THREE.MeshPhysicalMaterial({ color: 0x9ad8ff, metalness: 0.5, roughness: 0.2, clearcoat: 1, clearcoatRoughness: .05, transmission: .1, thickness: .35, emissive: 0x0a2740, emissiveIntensity:.5 });
+    const torsoMat = new THREE.MeshPhysicalMaterial({ color: 0x7df0c8, metalness: 0.4, roughness: 0.25, clearcoat: 1, emissive: 0x0b3a2a, emissiveIntensity:.6 });
+    const headMat  = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.4, emissive:0x222222, emissiveIntensity:.25 });
+
+    const player = new THREE.Group(); scene.add(player);
+
+    // Helper to create a limb (cylinder between two joints)
+    function createLimb(radius=0.035, mat=limbMat){
+      const geo = new THREE.CylinderGeometry(radius, radius, 1, 16, 1, true);
+      const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.frustumCulled = false;
+      const g = new THREE.Group();
+      // Default cylinder is Y-up, center pivot: scale.y will stretch half-length via child wrapper
+      const wrapper = new THREE.Group(); wrapper.add(mesh); mesh.position.y = 0; // centered
+      g.add(wrapper);
+      g.userData.mesh = mesh; g.userData.wrapper = wrapper;
+      return g;
+    }
+
+    function updateLimb(g, a, b){
+      // a,b are THREE.Vector3 positions (world-space for avatar local)
+      const v = new THREE.Vector3().subVectors(b, a);
+      const len = v.length();
+      const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+      g.position.copy(mid);
+      // Orient cylinder along v from a->b (default up 0,1,0)
+      const up = new THREE.Vector3(0,1,0);
+      const q = new THREE.Quaternion().setFromUnitVectors(up, v.clone().normalize());
+      g.setRotationFromQuaternion(q);
+      g.userData.wrapper.scale.set(1, len, 1); // since cylinder height is 1, scale.y = length
+    }
+
+    // Build avatar rig
+    const avatar = { joints: {}, limbs: {} };
+    const jointNames = [
+      'nose','left_shoulder','right_shoulder','left_elbow','right_elbow','left_wrist','right_wrist','left_hip','right_hip','left_knee','right_knee','left_ankle','right_ankle','left_heel','right_heel','left_foot_index','right_foot_index'
+    ];
+    jointNames.forEach(n=>{ const s = new THREE.SphereGeometry(0.03); const m = new THREE.MeshStandardMaterial({ color: 0x89aaff, emissive:0x0b2140, emissiveIntensity:.6, metalness:.3, roughness:.3 }); const mesh = new THREE.Mesh(s,m); mesh.castShadow=true; player.add(mesh); avatar.joints[n]=mesh; });
+
+    const torso = createLimb(0.08, torsoMat); player.add(torso); avatar.limbs['torso']=torso;
+
+    const pairs = [
+      ['left_shoulder','left_elbow'],['left_elbow','left_wrist'],
+      ['right_shoulder','right_elbow'],['right_elbow','right_wrist'],
+      ['left_hip','left_knee'],['left_knee','left_ankle'],
+      ['right_hip','right_knee'],['right_knee','right_ankle'],
+      ['left_shoulder','right_shoulder'],['left_hip','right_hip']
+    ];
+    for (const p of pairs){ const limb = createLimb(); player.add(limb); avatar.limbs[p.join('-')] = limb; }
+
+    // Head (sphere)
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 18), headMat); head.castShadow = true; player.add(head); avatar.head = head;
+
+    // Obstacles & gameplay
+    const obstacles = []; const obstacleGeo = new THREE.BoxGeometry(.5,.5,.5);
+    function spawnObstacle(){
+      const m = new THREE.MeshStandardMaterial({ color: 0x294d6b, metalness:.4, roughness:.2, emissive:0x0a2030, emissiveIntensity: 1.4 });
+      const box = new THREE.Mesh(obstacleGeo, m); box.castShadow=true; box.receiveShadow=true;
+      const laneX = [-2,0,2][Math.floor(Math.random()*3)];
+      box.position.set(laneX, .25, -18 - Math.random()*10);
+      scene.add(box); obstacles.push(box);
+    }
+
+    // ====== Video + Pose Detector ======
+    const video = document.getElementById('cam');
+    const dbg = document.getElementById('debug');
+    const debugCtx = dbg.getContext('2d');
+
+    let detector = null;
+    let running = false;
+    let lastTime = performance.now();
+    let ema = {}; // exponential smoothing buffer by joint name
+    let smoothK = 0.6;
+    let showDebug = false;
+
+    // Helpers
+    function lerp(a,b,t){ return a+(b-a)*t }
+    function vLerp(out,a,b,t){ out.x=lerp(a.x,b.x,t); out.y=lerp(a.y,b.y,t); out.z=lerp(a.z,b.z,t); return out }
+
+    function fitRenderer(){
+      const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w,h,false); renderer.setPixelRatio(Number(dprInput.value)||1);
+      camera3d.aspect = w/h; camera3d.updateProjectionMatrix(); composer.setSize(w,h);
+      dbg.width = Math.min(480, Math.floor(w*0.5)); dbg.height = Math.floor(dbg.width*9/16);
+    }
+    window.addEventListener('resize', fitRenderer);
+
+    const startBtn = document.getElementById('start');
+    const pauseBtn = document.getElementById('pause');
+    const dbgBtn = document.getElementById('dbg');
+    const dprInput = document.getElementById('dpr');
+    const smoothInput = document.getElementById('smooth');
+    const toggleCamBtn = document.getElementById('toggleCam');
+    const statusPill = document.getElementById('status');
+    const fpsPill = document.getElementById('fps');
+
+    smoothInput.addEventListener('input', () => { smoothK = Number(smoothInput.value); });
+    dprInput.addEventListener('input', fitRenderer);
+    dbgBtn.addEventListener('click', ()=>{ showDebug=!showDebug; dbg.style.display = showDebug? 'block':'none'; });
+    toggleCamBtn.addEventListener('click', ()=>{ video.style.display = video.style.display==='none' ? 'block' : 'none' });
+
+    async function ensureCamera(){
+      const constraints = { video: { facingMode: 'user', width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 30} }, audio: false };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream; await video.play();
+      video.muted = true; video.playsInline = true; video.setAttribute('playsinline','true');
+      return stream;
+    }
+
+    async function ensureDetector(){
+      const BlazePose = poseDetection.SupportedModels.BlazePose;
+      detector = await poseDetection.createDetector(BlazePose, {
+        runtime: 'mediapipe', // mediapipe runtime gives high‑quality 3D keypoints
+        solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404',
+        modelType: 'heavy',     // better accuracy (desktop)
+        enableSmoothing: true,
+        minPoseScore: 0.4
+      });
+    }
+
+    function setStatus(text, cls=''){
+      statusPill.textContent = text; statusPill.className = 'tag ' + cls;
+    }
+
+    async function start(){
+      try{
+        setStatus('Запрашиваю камеру…','warn');
+        await ensureCamera();
+        setStatus('Загружаю трекинг…','warn');
+        await ensureDetector();
+        setStatus('Камера ок • трекинг ок','ok');
+        startBtn.disabled = true; pauseBtn.disabled = false; running = true; document.getElementById('overlay').style.display='none';
+      }catch(err){ console.error(err); setStatus('Ошибка доступа к камере / трекингу','err'); alert('Не удалось получить доступ к камере или загрузить модель. Проверь HTTPS и дайте доступ камере.'); }
+    }
+
+    startBtn.addEventListener('click', start);
+    pauseBtn.addEventListener('click', ()=>{ running = !running; pauseBtn.textContent = running? '⏸ Пауза' : '▶ Продолжить'; });
+
+    // ====== Pose → Avatar mapping ======
+    const V3 = THREE.Vector3;
+    const zero = new V3();
+    const jp = {}; // current joint positions (local space)
+
+    function kp3(name, list){
+      const k = list.find(p=>p.name===name) || list[0];
+      const v = new V3(k.x??0, k.y??0, k.z??0);
+      // Mediapipe 3D: X right, Y down, Z forward(negative). Convert to avatar space (Y up, Z forward+)
+      v.set(v.x, -v.y, -v.z);
+      return v;
+    }
+
+    function smooth(name, cur){
+      const e = ema[name] || cur.clone();
+      const out = vLerp(new V3(), e, cur, 1 - smoothK);
+      ema[name] = out.clone();
+      return out;
+    }
+
+    function updateAvatarFromPose(pose){
+      if(!pose) return;
+      const k2 = pose.keypoints || [];
+      const k3 = pose.keypoints3D && pose.keypoints3D.length ? pose.keypoints3D : k2.map(k=>({name:k.name,x:k.x/Math.max(video.videoWidth,1),y:k.y/Math.max(video.videoHeight,1),z:0}));
+
+      // Build joint set we care about
+      const j = {};
+      for(const n of jointNames){ j[n] = smooth(n, kp3(n, k3)); }
+
+      // Derived centers
+      const hipCenter = smooth('hip_center', j['left_hip'].clone().add(j['right_hip']).multiplyScalar(0.5));
+      const shCenter  = smooth('shoulder_center', j['left_shoulder'].clone().add(j['right_shoulder']).multiplyScalar(0.5));
+
+      // Normalize & scale avatar size (target body height ≈ 1.7 units)
+      const feetY = Math.max(j['left_foot_index'].y, j['right_foot_index'].y, j['left_ankle'].y, j['right_ankle'].y);
+      const headY = Math.min(j['nose'].y, j['left_shoulder'].y-0.25, j['right_shoulder'].y-0.25);
+      const height = Math.max(0.6, (feetY - headY));
+      const scale = 1.7 / height;
+
+      // Position avatar root on ground (y=0), keep slight Z back
+      player.position.lerp(new V3(0, 0, 0), 0.1);
+      player.scale.lerp(new V3(scale, scale, scale), 0.15);
+
+      // Update joint meshes
+      for(const n in avatar.joints){ const p = j[n]; avatar.joints[n].position.copy(p); }
+
+      // Torso between centers
+      updateLimb(avatar.limbs['torso'], shCenter, hipCenter);
+
+      // Limbs
+      for(const [a,b] of pairs){ updateLimb(avatar.limbs[a+'-'+b], j[a], j[b]); }
+
+      // Head above nose based on shoulder span
+      const shoulderSpan = j['left_shoulder'].distanceTo(j['right_shoulder']);
+      const headPos = j['nose'].clone().add(new V3(0, shoulderSpan*0.35, 0));
+      avatar.head.position.copy(headPos);
+      avatar.head.scale.setScalar(THREE.MathUtils.clamp(shoulderSpan*0.7, 0.1, 0.35));
+
+      // ====== GAME CONTROL ======
+      // Horizontal: lean controls (angle between shoulders vs horizontal)
+      const lean = THREE.MathUtils.clamp((j['right_shoulder'].y - j['left_shoulder'].y) * 3.5, -1.5, 1.5);
+      const targetX = lean * 2.2; // 3 lanes coverage
+      player.position.x = lerp(player.position.x, targetX, 0.15);
+
+      // Jump: both wrists above head
+      const wristsUp = (Math.min(j['left_wrist'].y, j['right_wrist'].y) < (headPos.y - shoulderSpan*0.15));
+      if(wristsUp && player.userData.grounded !== false){ player.userData.vy = 0.18; player.userData.grounded=false; }
+
+      // Slide (duck): hips drop significantly
+      player.userData.duck = (hipCenter.y < shCenter.y - shoulderSpan*0.6);
+    }
+
+    // Simple physics for jump
+    function updatePhysics(dt){
+      const g = -0.9; // gravity (units/s^2)
+      player.userData.vy = (player.userData.vy||0) + g*dt;
+      const y = (player.position.y||0) + (player.userData.vy||0);
+      if(y <= 0){ player.position.y = 0; player.userData.vy = 0; player.userData.grounded = true; }
+      else{ player.position.y = y; }
+    }
+
+    // Spawn loop
+    let spawnAcc = 0, score=0;
+
+    // Main loop
+    async function loop(){
+      requestAnimationFrame(loop);
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - lastTime)/1000); lastTime = now;
+
+      // Pose detection
+      if(running && detector && video.readyState >= 2){
+        const poses = await detector.estimatePoses(video, { flipHorizontal: true });
+        updateAvatarFromPose(poses[0]);
+      }
+
+      // Physics & gameplay
+      if(running){
+        updatePhysics(dt);
+        spawnAcc += dt; if(spawnAcc>1.1){ spawnAcc=0; spawnObstacle(); }
+        for(let i=obstacles.length-1;i>=0;i--){
+          const o = obstacles[i]; o.position.z += 6*dt;
+          // Collision AABB vs player
+          const px = player.position.x, py = player.position.y + 1.0; // chest height
+          if(Math.abs(o.position.x - px) < 0.45 && Math.abs(o.position.z - 0) < 0.4){
+            const obstacleTop = o.position.y + 0.25;
+            const ducking = player.userData.duck;
+            const jumping = py > 0.8;
+            if(!(ducking || jumping)){
+              // hit
+              setStatus('Столкновение! Счёт: '+score, 'err');
+              // reset
+              for(const x of obstacles){ scene.remove(x); }
+              obstacles.length=0; score=0; break;
+            }
+          }
+          if(o.position.z > 3){ scene.remove(o); obstacles.splice(i,1); score++; setStatus('Счёт: '+score,'ok'); }
+        }
+      }
+
+      // Debug overlay
+      if(showDebug){
+        debugCtx.clearRect(0,0,dbg.width, dbg.height);
+        try{
+          debugCtx.globalAlpha = 0.4; debugCtx.drawImage(video,0,0,dbg.width,dbg.height); debugCtx.globalAlpha=1;
+        }catch{}
+        debugCtx.fillStyle = 'white'; debugCtx.font = '12px system-ui'; debugCtx.fillText('Отладка – камера + поза', 8, 18);
+      }
+
+      controls.update();
+      composer.render();
+
+      // FPS
+      const fps = Math.round(1000 / (now - (loop.last||now-16))); loop.last = now;
+      fpsPill.textContent = 'FPS: ' + fps;
+    }
+
+    fitRenderer();
+    loop();
+
+    // Resize observer for canvas DPR changes
+    const ro = new ResizeObserver(fitRenderer); ro.observe(document.body);
+
+    // ====== Safety & capability checks ======
+    if(!('mediaDevices' in navigator)){
+      setStatus('Нет доступа к камере в этом браузере','err');
+    }
+    if(!WebGLRenderingContext){
+      setStatus('WebGL не поддерживается','err');
+    }
+  </script>
+</body>
+</html>
