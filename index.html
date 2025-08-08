@@ -1,748 +1,502 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate 3D Avatar Body Tracking Game</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%);
-            overflow: hidden;
-            color: white;
-            height: 100vh;
-        }
-
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        #videoElement {
-            position: absolute;
-            top: -9999px;
-            width: 640px;
-            height: 480px;
-        }
-
-        #mainCanvas {
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            cursor: none;
-        }
-
-        /* UI элементы */
-        .ui-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 25px;
-            border-radius: 20px;
-            backdrop-filter: blur(15px);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            min-width: 320px;
-        }
-
-        .score-text {
-            font-size: 28px;
-            font-weight: bold;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
-        }
-
-        .status-row {
-            display: flex;
-            align-items: center;
-            margin-top: 15px;
-            font-size: 16px;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 10px;
-            animation: pulse 2s infinite;
-        }
-
-        .status-active { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
-        .status-warning { background: #FF9800; box-shadow: 0 0 10px #FF9800; }
-        .status-error { background: #f44336; box-shadow: 0 0 10px #f44336; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.1); }
-        }
-
-        /* Стартовое меню */
-        .start-menu {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 200;
-            background: rgba(0, 0, 0, 0.92);
-            padding: 50px;
-            border-radius: 30px;
-            backdrop-filter: blur(25px);
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            max-width: 700px;
-        }
-
-        .start-button {
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
-            background-size: 400% 400%;
-            animation: gradientFlow 4s ease infinite;
-            color: white;
-            border: none;
-            padding: 20px 40px;
-            border-radius: 35px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            margin: 15px;
-            transition: all 0.4s ease;
-            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .start-button:hover {
-            transform: translateY(-5px) scale(1.08);
-            box-shadow: 0 20px 50px rgba(255, 107, 107, 0.8);
-        }
-
-        @keyframes gradientFlow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* Частицы для эффектов */
-        .game-particle {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: radial-gradient(circle, #ffeb3b, #ff9800);
-            border-radius: 50%;
-            pointer-events: none;
-            animation: particleBurst 2s ease-out forwards;
-            z-index: 50;
-        }
-
-        @keyframes particleBurst {
-            0% {
-                opacity: 1;
-                transform: scale(1) rotate(0deg);
-            }
-            100% {
-                opacity: 0;
-                transform: scale(0.2) translateY(-200px) rotate(720deg);
-            }
-        }
-
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 300;
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 6px solid rgba(255, 255, 255, 0.1);
-            border-top: 6px solid #4ecdc4;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error-message {
-            background: rgba(244, 67, 54, 0.9);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px;
-            text-align: center;
-            display: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Full‑Body → 3D Аватар → Игра (чистый доступ к камере)</title>
+  <meta name="color-scheme" content="dark light" />
+  <style>
+    :root { --bg:#0b0d10; --fg:#e6ebf1; --muted:#97a3b6; --accent:#7c9cff; --ok:#35d07f; --warn:#ffcc00; --bad:#ff4d4f; }
+    html,body{height:100%;}
+    body{margin:0;font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; background:var(--bg); color:var(--fg);}
+    header{padding:16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #1b1f26; position:sticky; top:0; z-index:5; background:linear-gradient(180deg, rgba(11,13,16,.95), rgba(11,13,16,.85)); backdrop-filter: blur(6px);}    
+    h1{font-size:18px;margin:0}
+    .badge{font-size:12px;color:#ccd6e4;background:#14213a;padding:4px 8px;border-radius:999px;border:1px solid #223052}
+    main{display:grid; grid-template-columns: 360px 1fr; gap:16px; padding:16px;}
+    @media (max-width: 980px){ main{grid-template-columns: 1fr;} }
+    .card{border:1px solid #1b1f26; border-radius:16px; background:#0f1217; box-shadow: 0 10px 30px rgba(0,0,0,.25);}
+    .panel{padding:16px;}
+    .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .col{display:flex; flex-direction:column; gap:10px}
+    button{appearance:none; border-radius:14px; padding:12px 16px; border:1px solid #2a3446; background:#131a24; color:#e9eef8; cursor:pointer; font-weight:600;}
+    button:hover{border-color:#3b4b67}
+    button.pri{background:linear-gradient(180deg,#1a58ff,#0033cc); border-color:#2b57ff}
+    button.good{background:linear-gradient(180deg,#1a9a5a,#007844); border-color:#1fb76b}
+    button.warn{background:linear-gradient(180deg,#d69600,#a06f00); border-color:#ffb300}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    .hint{color:var(--muted); font-size:13px}
+    .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+    details{border:1px dashed #2a3346; border-radius:12px; padding:10px 12px}
+    summary{cursor:pointer}
+    #stage{position:relative; min-height: 60vh; height: 72vh;}
+    #three{position:absolute; inset:0; display:block; width:100%; height:100%;}
+    #dbgLayer{position:absolute; right:8px; bottom:8px; width:240px; height:135px; border:1px solid #2a3346; border-radius:10px; overflow:hidden; display:none; background:#000}
+    #video{width:100%; height:100%; object-fit:cover}
+    #dbgCanvas{position:absolute; inset:0;}
+    #hud{position:absolute; left:8px; top:8px; background:rgba(0,0,0,.45); padding:10px 12px; border-radius:12px; border:1px solid #2b3446; display:none}
+    #log{white-space:pre-wrap; max-height:30vh; overflow:auto; background:#0a0d12; padding:12px; border-radius:12px; border:1px solid #1b2232}
+    .kpi{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+    .kpi .box{background:#0c1117; border:1px solid #1c2230; border-radius:12px; padding:8px}
+    .label{font-size:12px; color:#97a3b6}
+    .value{font-size:20px; font-weight:800}
+    .sep{height:1px;background:#1b1f26;margin:12px 0}
+    .grid{display:grid; gap:10px}
+    .tag{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid #2a3346; background:#121821; color:#cfd7e6}
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <video id="videoElement" autoplay muted playsinline></video>
-        <canvas id="mainCanvas"></canvas>
-        
-        <div class="ui-panel">
-            <div class="score-text">ОЧКИ: <span id="scoreDisplay">0</span></div>
-            <div style="font-size: 18px; margin-top: 10px; color: #ffeb3b;">
-                КОМБО: x<span id="comboDisplay">1.0</span>
-            </div>
-            <div class="status-row">
-                <div class="status-dot status-error" id="trackingDot"></div>
-                <span id="trackingText">Инициализация...</span>
-            </div>
-            <div class="status-row">
-                <div class="status-dot status-error" id="cameraDot"></div>
-                <span id="cameraText">Камера: Отключена</span>
-            </div>
-            <div style="margin-top: 15px; font-size: 14px; opacity: 0.8;">
-                FPS: <span id="fpsCounter">0</span>
-            </div>
+  <header>
+    <h1>3D Аватар по полному телу + игра (после гарантированного запроса камеры)</h1>
+    <span class="badge">Single‑file • HTTPS/localhost only • Safari/Chrome/Firefox</span>
+  </header>
+
+  <main>
+    <section class="card panel" style="min-width:290px">
+      <div class="col">
+        <h2 style="margin:4px 0 0">Шаг 1 — запрашиваем камеру (чистая база)</h2>
+        <p class="hint">Запускаем строго из клика. Если страница в iframe — нужен <span class="mono">allow="camera; microphone"</span>. Для iOS у видео заранее выставлены <span class="mono">playsinline</span> и <span class="mono">muted</span>.</p>
+        <div class="row">
+          <button id="startBtn" class="pri">1) Разрешить камеру</button>
+          <button id="stopBtn" class="warn" disabled>Стоп камера</button>
         </div>
-
-        <div class="start-menu" id="startMenu">
-            <h1 style="font-size: 36px; margin-bottom: 20px;">
-                🎮 ULTIMATE 3D AVATAR GAME
-            </h1>
-            <h2 style="color: #4ecdc4; margin-bottom: 30px;">
-                Мега-качественный трекинг всего тела
-            </h2>
-            <p style="font-size: 18px; line-height: 1.8; margin-bottom: 30px;">
-                🎯 Поставьте ноутбук так, чтобы всё тело попадало в кадр<br>
-                🎯 Управляйте 3D аватаром движениями своего тела<br>
-                🎯 Собирайте энергетические кристаллы<br>
-                🎯 Фон автоматически удаляется
-            </p>
-            <button class="start-button" onclick="startUltimateGame()">
-                🚀 ЗАПУСТИТЬ ИГРУ
-            </button>
-            <button class="start-button" onclick="testCameraFunction()">
-                📷 ПРОВЕРИТЬ КАМЕРУ
-            </button>
+        <div id="env" class="hint mono"></div>
+        <div class="sep"></div>
+        
+        <h2 style="margin:0">Шаг 2 — трекинг тела → 3D аватар → игра</h2>
+        <p class="hint">Модули грузим <b>после</b> успешного доступа к камере: <span class="tag">TensorFlow.js</span> <span class="tag">BlazePose</span> <span class="tag">Three.js</span>.</p>
+        <div class="row">
+          <button id="trackBtn" class="good" disabled>2) Запустить трекинг и 3D</button>
+          <button id="toggleDbgBtn" disabled>Отладка: показать камеру</button>
         </div>
-
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="loading-spinner"></div>
-            <h3 style="margin-top: 30px;">Загрузка AI моделей...</h3>
-            <p id="loadingStatus" style="margin-top: 10px; opacity: 0.8;">Инициализация...</p>
+        
+        <div class="sep"></div>
+        <div class="kpi">
+          <div class="box"><div class="label">FPS рендера</div><div class="value" id="fpsR">—</div></div>
+          <div class="box"><div class="label">FPS трекинга</div><div class="value" id="fpsT">—</div></div>
+          <div class="box"><div class="label">Ping камер</div><div class="value" id="fpsC">—</div></div>
         </div>
+        
+        <div class="sep"></div>
+        <details>
+          <summary>Если камера не спрашивает доступ</summary>
+          <ul>
+            <li>Должен быть <b>HTTPS</b> или <b>localhost</b>.</li>
+            <li>В Safari проверьте: Настройки → Веб‑сайты → Камера → Разрешить.</li>
+            <li>Если вы в iframe — добавьте <span class="mono">allow="camera; microphone"</span> и <span class="mono">sandbox</span> без блокировок.</li>
+            <li>Если однажды отказали — сайт запомнил. Зайдите в настройки сайта и разрешите.</li>
+            <li>На iOS/iphone: видео с <span class="mono">playsinline</span> + <span class="mono">muted</span>, запуск из <b>клика</b>.</li>
+          </ul>
+        </details>
+        <div class="sep"></div>
+        <div id="log" class="mono" aria-live="polite"></div>
+      </div>
+    </section>
 
-        <div class="error-message" id="errorMessage"></div>
-    </div>
+    <section class="card panel">
+      <div id="stage">
+        <canvas id="three"></canvas>
+        <div id="hud" class="mono"></div>
+        <div id="dbgLayer">
+          <video id="video" playsinline muted autoplay></video>
+          <canvas id="dbgCanvas"></canvas>
+        </div>
+      </div>
+      <p class="hint">Совет: поставьте ноут/телефон так, чтобы вас было видно <b>целиком</b> (с головы до стоп). Держите освещение ровным.</p>
+    </section>
+  </main>
 
-    <!-- Подключение библиотек -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation@1.0.2/dist/body-segmentation.js"></script>
+  <script type="module">
+    // === ШАГ 0. Системные утилиты и "чистая база" ===
+    const $ = (sel)=>document.querySelector(sel);
+    const logEl = $('#log');
+    const envEl = $('#env');
+    const startBtn = $('#startBtn');
+    const stopBtn = $('#stopBtn');
+    const trackBtn = $('#trackBtn');
+    const toggleDbgBtn = $('#toggleDbgBtn');
+    const video = $('#video');
+    const dbgCanvas = $('#dbgCanvas');
+    const dbgCtx = dbgCanvas.getContext('2d');
+    const hud = $('#hud');
+    const threeCanvas = $('#three');
+    const dbgLayer = $('#dbgLayer');
+    let stream = null;
+    let trackingStarted = false;
+    let cameraOk = false;
 
-    <script>
-        // Главный класс игры
-        class UltimateBodyTrackingGame {
-            constructor() {
-                this.canvas = document.getElementById('mainCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.video = document.getElementById('videoElement');
-                
-                // Состояние игры
-                this.isInitialized = false;
-                this.isRunning = false;
-                this.score = 0;
-                this.combo = 1.0;
-                this.fps = 0;
-                this.frameCount = 0;
-                this.lastTime = performance.now();
-                
-                // AI модели
-                this.poseDetector = null;
-                this.bodySegmenter = null;
-                
-                // Игровые объекты
-                this.avatar = {
-                    x: 0,
-                    y: 0,
-                    keypoints: [],
-                    confidence: 0
-                };
-                
-                this.crystals = [];
-                this.particles = [];
-                
-                this.setupCanvas();
-                this.initializeAI();
-            }
-            
-            setupCanvas() {
-                const resize = () => {
-                    this.canvas.width = window.innerWidth;
-                    this.canvas.height = window.innerHeight;
-                };
-                resize();
-                window.addEventListener('resize', resize);
-            }
-            
-            async initializeAI() {
-                try {
-                    this.showLoading('Загрузка системы трекинга...');
-                    
-                    // Инициализация детектора поз
-                    this.updateLoadingStatus('Загрузка MoveNet...');
-                    this.poseDetector = await poseDetection.createDetector(
-                        poseDetection.SupportedModels.MoveNet,
-                        {
-                            modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
-                            enableSmoothing: true,
-                        }
-                    );
-                    
-                    // Инициализация сегментации
-                    this.updateLoadingStatus('Загрузка Body Segmentation...');
-                    this.bodySegmenter = await bodySegmentation.createSegmenter(
-                        bodySegmentation.SupportedModels.SelfieSegmentation,
-                        {
-                            runtime: 'tfjs'
-                        }
-                    );
-                    
-                    this.isInitialized = true;
-                    this.hideLoading();
-                    this.updateStatus('Система готова!', 'active');
-                    
-                    console.log('✅ AI модели успешно загружены');
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка инициализации AI:', error);
-                    this.showError('Ошибка загрузки AI моделей: ' + error.message);
-                    this.hideLoading();
-                }
-            }
-            
-            async startCamera() {
-                try {
-                    this.updateLoadingStatus('Запуск камеры...');
-                    
-                    const constraints = {
-                        video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 },
-                            facingMode: 'user',
-                            frameRate: { ideal: 30 }
-                        }
-                    };
-                    
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    this.video.srcObject = stream;
-                    
-                    return new Promise((resolve) => {
-                        this.video.onloadedmetadata = () => {
-                            this.updateCameraStatus('Камера: Активна', 'active');
-                            resolve(true);
-                        };
-                    });
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка камеры:', error);
-                    this.showError('Не удалось запустить камеру. Проверьте разрешения.');
-                    this.updateCameraStatus('Камера: Ошибка', 'error');
-                    return false;
-                }
-            }
-            
-            async detectPose() {
-                if (!this.poseDetector || this.video.readyState !== 4) {
-                    return null;
-                }
-                
-                try {
-                    const poses = await this.poseDetector.estimatePoses(this.video);
-                    return poses.length > 0 ? poses[0] : null;
-                } catch (error) {
-                    console.error('Ошибка детекции позы:', error);
-                    return null;
-                }
-            }
-            
-            updateAvatar(pose) {
-                if (!pose || !pose.keypoints) return;
-                
-                this.avatar.keypoints = pose.keypoints;
-                this.avatar.confidence = pose.score || 0;
-                
-                // Находим центр тела
-                const nose = pose.keypoints.find(kp => kp.name === 'nose');
-                const leftHip = pose.keypoints.find(kp => kp.name === 'left_hip');
-                const rightHip = pose.keypoints.find(kp => kp.name === 'right_hip');
-                
-                if (nose && leftHip && rightHip && nose.score > 0.3) {
-                    const centerX = (leftHip.x + rightHip.x) / 2;
-                    const centerY = (nose.y + leftHip.y + rightHip.y) / 3;
-                    
-                    // Преобразование координат
-                    this.avatar.x = (centerX / this.video.videoWidth) * this.canvas.width;
-                    this.avatar.y = (centerY / this.video.videoHeight) * this.canvas.height;
-                }
-                
-                // Обновляем статус трекинга
-                const visiblePoints = pose.keypoints.filter(kp => kp.score > 0.3).length;
-                const quality = visiblePoints / pose.keypoints.length;
-                
-                if (quality > 0.7) {
-                    this.updateStatus('Отличный трекинг', 'active');
-                } else if (quality > 0.4) {
-                    this.updateStatus('Средний трекинг', 'warning');
-                } else {
-                    this.updateStatus('Слабый трекинг', 'error');
-                }
-            }
-            
-            drawAvatar() {
-                if (!this.avatar.keypoints.length) return;
-                
-                const ctx = this.ctx;
-                
-                // Рисуем соединения
-                this.drawSkeleton();
-                
-                // Рисуем точки
-                this.avatar.keypoints.forEach((keypoint, index) => {
-                    if (keypoint.score < 0.3) return;
-                    
-                    const x = (keypoint.x / this.video.videoWidth) * this.canvas.width;
-                    const y = (keypoint.y / this.video.videoHeight) * this.canvas.height;
-                    
-                    // Создаем красивую точку
-                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 15);
-                    gradient.addColorStop(0, '#ffff00');
-                    gradient.addColorStop(0.5, '#ff6b6b');
-                    gradient.addColorStop(1, 'rgba(255, 107, 107, 0)');
-                    
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(x, y, 8, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Добавляем свечение
-                    ctx.shadowColor = '#ffff00';
-                    ctx.shadowBlur = 20;
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                });
-            }
-            
-            drawSkeleton() {
-                const ctx = this.ctx;
-                const connections = [
-                    ['left_shoulder', 'right_shoulder'],
-                    ['left_shoulder', 'left_elbow'],
-                    ['left_elbow', 'left_wrist'],
-                    ['right_shoulder', 'right_elbow'],
-                    ['right_elbow', 'right_wrist'],
-                    ['left_hip', 'right_hip'],
-                    ['left_hip', 'left_knee'],
-                    ['left_knee', 'left_ankle'],
-                    ['right_hip', 'right_knee'],
-                    ['right_knee', 'right_ankle'],
-                    ['left_shoulder', 'left_hip'],
-                    ['right_shoulder', 'right_hip'],
-                    ['nose', 'left_shoulder'],
-                    ['nose', 'right_shoulder']
-                ];
-                
-                ctx.strokeStyle = 'rgba(78, 205, 196, 0.8)';
-                ctx.lineWidth = 4;
-                ctx.lineCap = 'round';
-                
-                connections.forEach(([start, end]) => {
-                    const startPoint = this.avatar.keypoints.find(kp => kp.name === start);
-                    const endPoint = this.avatar.keypoints.find(kp => kp.name === end);
-                    
-                    if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
-                        const x1 = (startPoint.x / this.video.videoWidth) * this.canvas.width;
-                        const y1 = (startPoint.y / this.video.videoHeight) * this.canvas.height;
-                        const x2 = (endPoint.x / this.video.videoWidth) * this.canvas.width;
-                        const y2 = (endPoint.y / this.video.videoHeight) * this.canvas.height;
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.stroke();
-                    }
-                });
-            }
-            
-            generateCrystals() {
-                if (this.crystals.length < 5 && Math.random() < 0.03) {
-                    this.crystals.push({
-                        x: Math.random() * this.canvas.width,
-                        y: Math.random() * this.canvas.height,
-                        rotation: 0,
-                        scale: 1,
-                        collected: false,
-                        type: Math.floor(Math.random() * 3)
-                    });
-                }
-            }
-            
-            updateCrystals() {
-                this.crystals.forEach((crystal, index) => {
-                    if (crystal.collected) return;
-                    
-                    crystal.rotation += 0.05;
-                    crystal.scale = 1 + Math.sin(Date.now() * 0.003 + index) * 0.3;
-                    
-                    // Проверка коллизии
-                    const distance = Math.sqrt(
-                        Math.pow(crystal.x - this.avatar.x, 2) + 
-                        Math.pow(crystal.y - this.avatar.y, 2)
-                    );
-                    
-                    if (distance < 60) {
-                        this.collectCrystal(index);
-                    }
-                });
-            }
-            
-            collectCrystal(index) {
-                const crystal = this.crystals[index];
-                crystal.collected = true;
-                
-                // Увеличиваем счет
-                this.score += Math.floor(10 * this.combo);
-                this.combo = Math.min(this.combo + 0.1, 5.0);
-                
-                // Создаем эффект
-                this.createParticleExplosion(crystal.x, crystal.y);
-                
-                // Удаляем кристалл
-                setTimeout(() => {
-                    this.crystals.splice(index, 1);
-                }, 100);
-                
-                this.updateScoreDisplay();
-            }
-            
-            drawCrystals() {
-                const ctx = this.ctx;
-                
-                this.crystals.forEach(crystal => {
-                    if (crystal.collected) return;
-                    
-                    ctx.save();
-                    ctx.translate(crystal.x, crystal.y);
-                    ctx.rotate(crystal.rotation);
-                    ctx.scale(crystal.scale, crystal.scale);
-                    
-                    const colors = ['#ffeb3b', '#e91e63', '#00bcd4'];
-                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 25);
-                    gradient.addColorStop(0, colors[crystal.type]);
-                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                    
-                    ctx.fillStyle = gradient;
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 3;
-                    
-                    // Рисуем кристалл
-                    ctx.beginPath();
-                    ctx.moveTo(0, -25);
-                    ctx.lineTo(18, -8);
-                    ctx.lineTo(18, 8);
-                    ctx.lineTo(0, 25);
-                    ctx.lineTo(-18, 8);
-                    ctx.lineTo(-18, -8);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    
-                    ctx.restore();
-                });
-            }
-            
-            createParticleExplosion(x, y) {
-                for (let i = 0; i < 15; i++) {
-                    const particle = document.createElement('div');
-                    particle.className = 'game-particle';
-                    particle.style.left = (x + (Math.random() - 0.5) * 40) + 'px';
-                    particle.style.top = (y + (Math.random() - 0.5) * 40) + 'px';
-                    particle.style.animationDelay = (Math.random() * 0.3) + 's';
-                    document.body.appendChild(particle);
-                    
-                    setTimeout(() => particle.remove(), 2000);
-                }
-            }
-            
-            drawBackground() {
-                const ctx = this.ctx;
-                const time = Date.now() * 0.001;
-                
-                // Анимированный фон
-                const gradient = ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
-                gradient.addColorStop(0, `hsl(${time * 10}, 50%, 10%)`);
-                gradient.addColorStop(0.5, `hsl(${time * 10 + 60}, 60%, 8%)`);
-                gradient.addColorStop(1, `hsl(${time * 10 + 120}, 50%, 15%)`);
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                // Добавляем звезды
-                for (let i = 0; i < 100; i++) {
-                    const x = (Math.sin(time * 0.05 + i) * 200 + this.canvas.width / 2 + i * 20) % this.canvas.width;
-                    const y = (Math.cos(time * 0.08 + i) * 100 + this.canvas.height / 2 + i * 15) % this.canvas.height;
-                    const alpha = Math.sin(time * 3 + i) * 0.5 + 0.5;
-                    
-                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
-                    ctx.beginPath();
-                    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-            
-            calculateFPS() {
-                this.frameCount++;
-                const now = performance.now();
-                if (now - this.lastTime >= 1000) {
-                    this.fps = this.frameCount;
-                    this.frameCount = 0;
-                    this.lastTime = now;
-                    document.getElementById('fpsCounter').textContent = this.fps;
-                }
-            }
-            
-            async gameLoop() {
-                if (!this.isRunning) return;
-                
-                this.calculateFPS();
-                
-                // Детекция позы
-                const pose = await this.detectPose();
-                if (pose) {
-                    this.updateAvatar(pose);
-                }
-                
-                // Очистка и рисование
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.drawBackground();
-                
-                // Игровая логика
-                this.generateCrystals();
-                this.updateCrystals();
-                this.drawCrystals();
-                
-                // Рисуем аватар
-                this.drawAvatar();
-                
-                requestAnimationFrame(() => this.gameLoop());
-            }
-            
-            async start() {
-                if (!this.isInitialized) {
-                    this.showError('Дождитесь загрузки AI моделей');
-                    return;
-                }
-                
-                this.showLoading('Запуск игры...');
-                
-                const cameraOK = await this.startCamera();
-                if (!cameraOK) {
-                    this.hideLoading();
-                    return;
-                }
-                
-                // Сброс игровых параметров
-                this.score = 0;
-                this.combo = 1.0;
-                this.crystals = [];
-                this.updateScoreDisplay();
-                
-                // Создаем начальные кристаллы
-                for (let i = 0; i < 3; i++) {
-                    this.crystals.push({
-                        x: Math.random() * this.canvas.width,
-                        y: Math.random() * this.canvas.height,
-                        rotation: 0,
-                        scale: 1,
-                        collected: false,
-                        type: Math.floor(Math.random() * 3)
-                    });
-                }
-                
-                this.hideLoading();
-                document.getElementById('startMenu').style.display = 'none';
-                this.isRunning = true;
-                
-                this.gameLoop();
-            }
-            
-            // Вспомогательные методы UI
-            showLoading(message = 'Загрузка...') {
-                document.getElementById('loadingOverlay').style.display = 'flex';
-                this.updateLoadingStatus(message);
-            }
-            
-            hideLoading() {
-                document.getElementById('loadingOverlay').style.display = 'none';
-            }
-            
-            updateLoadingStatus(text) {
-                document.getElementById('loadingStatus').textContent = text;
-            }
-            
-            updateStatus(text, type) {
-                document.getElementById('trackingText').textContent = `Трекинг: ${text}`;
-                document.getElementById('trackingDot').className = `status-dot status-${type}`;
-            }
-            
-            updateCameraStatus(text, type) {
-                document.getElementById('cameraText').textContent = text;
-                document.getElementById('cameraDot').className = `status-dot status-${type}`;
-            }
-            
-            updateScoreDisplay() {
-                document.getElementById('scoreDisplay').textContent = this.score;
-                document.getElementById('comboDisplay').textContent = this.combo.toFixed(1);
-            }
-            
-            showError(message) {
-                const errorEl = document.getElementById('errorMessage');
-                errorEl.textContent = message;
-                errorEl.style.display = 'block';
-                setTimeout(() => {
-                    errorEl.style.display = 'none';
-                }, 5000);
-            }
+    function log(...args){
+      const msg = args.map(a => typeof a==='object'? JSON.stringify(a): String(a)).join(' ');
+      console.log('[LOG]', ...args);
+      logEl.textContent += `\n${new Date().toLocaleTimeString()} ${msg}`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Environment info for диагностики
+    const envInfo = {
+      protocol: location.protocol,
+      host: location.host,
+      isSecureContext: window.isSecureContext,
+      ua: navigator.userAgent,
+      inIframe: (()=>{ try { return window.self !== window.top; } catch{ return true; } })(),
+      permissions: {}
+    };
+
+    envEl.textContent = `protocol=${envInfo.protocol} host=${envInfo.host} isSecureContext=${envInfo.isSecureContext} inIframe=${envInfo.inIframe}`;
+
+    async function checkPermissions(){
+      if (!('permissions' in navigator)) return;
+      try{
+        const st = await navigator.permissions.query({name:'camera'});
+        envInfo.permissions.camera = st.state; // 'granted' | 'denied' | 'prompt'
+        log('permissions.camera =', st.state);
+      }catch(e){/* Safari не всегда разрешает */}
+    }
+    checkPermissions();
+
+    function requireHttps(){
+      if (!(location.protocol === 'https:' || location.hostname === 'localhost')){
+        throw new Error('Нужен HTTPS или localhost — иначе браузер не даст доступ к камере.');
+      }
+      if (envInfo.inIframe){
+        log('Страница в iframe. Убедитесь, что на iframe есть allow="camera; microphone" и sandbox не блокирует.');
+      }
+    }
+
+    // === ШАГ 1. Запрос камеры строго из клика ===
+    startBtn.addEventListener('click', async ()=>{
+      try{
+        requireHttps();
+        startBtn.disabled = true;
+        log('start() click');
+        // Жесткие атрибуты для iOS Safari
+        video.setAttribute('playsinline','');
+        video.setAttribute('muted','');
+        video.muted = true;
+        video.autoplay = true;
+
+        const constraints = {
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30, max: 60 }
+          },
+          audio: false
+        };
+
+        const t0 = performance.now();
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const t1 = performance.now();
+        log('getUserMedia ok in', Math.round(t1 - t0), 'ms');
+
+        video.srcObject = stream;
+        await video.play();
+        await new Promise(r=>setTimeout(r, 50));
+        cameraOk = true;
+        stopBtn.disabled = false;
+        trackBtn.disabled = false;
+        toggleDbgBtn.disabled = false;
+        hud.style.display = 'block';
+
+        // Обновляем KPI камера fps (примерная оценка по таймеру рисования превью)
+        startCameraPing();
+      }catch(err){
+        startBtn.disabled = false;
+        cameraOk = false;
+        handleGumError(err);
+      }
+    });
+
+    stopBtn.addEventListener('click', ()=>{
+      if (stream){ for (const t of stream.getTracks()) t.stop(); }
+      stream = null; cameraOk = false;
+      stopBtn.disabled = true; trackBtn.disabled = true; toggleDbgBtn.disabled = true; startBtn.disabled = false;
+      log('Камера остановлена пользователем');
+    });
+
+    toggleDbgBtn.addEventListener('click', ()=>{
+      dbgLayer.style.display = dbgLayer.style.display === 'none' ? 'block' : 'none';
+      toggleDbgBtn.textContent = dbgLayer.style.display === 'none' ? 'Отладка: показать камеру' : 'Отладка: скрыть камеру';
+    });
+
+    function handleGumError(err){
+      console.error(err);
+      const name = err && (err.name || err.toString());
+      if (name === 'NotAllowedError' || name === 'SecurityError'){
+        log('❌ Доступ к камере запрещён. Проверьте настройки сайта/браузера и попробуйте снова.');
+      } else if (name === 'NotFoundError' || name === 'OverconstrainedError'){
+        log('❌ Камера не найдена или неподходящая. Подключите камеру.');
+      } else if (name === 'NotReadableError'){
+        log('❌ Камера занята другой программой. Закройте её и попробуйте снова.');
+      } else if (name && String(name).includes('HTTPS')){
+        log('❌ Нужен HTTPS или localhost.');
+      } else {
+        log('❌ Ошибка getUserMedia:', err.message || err);
+      }
+    }
+
+    // === KPI: FPS замеры ===
+    let camPingRAF; let lastCamTS=performance.now(); let camFrames=0;
+    function startCameraPing(){
+      if (!cameraOk) return;
+      function tick(ts){
+        camFrames++; if (ts - lastCamTS > 1000){
+          $('#fpsC').textContent = camFrames.toString();
+          camFrames = 0; lastCamTS = ts;
         }
-        
-        // Создаем экземпляр игры
-        const game = new UltimateBodyTrackingGame();
-        
-        // Функции для кнопок
-        async function startUltimateGame() {
-            await game.start();
+        camPingRAF = requestAnimationFrame(tick);
+      }
+      cancelAnimationFrame(camPingRAF); camPingRAF = requestAnimationFrame(tick);
+    }
+
+    // === ШАГ 2. Трекер позы + Three.js сцена и мини‑игра ===
+    trackBtn.addEventListener('click', async ()=>{
+      if (!cameraOk || trackingStarted) return;
+      trackingStarted = true;
+      trackBtn.disabled = true;
+      log('Загружаем модули: tfjs + pose‑detection + three.js …');
+
+      // Ленивая загрузка зависимостей:
+      const [tf, tfwebgl, posedetection, THREE] = await Promise.all([
+        import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.21.0/dist/tf-core.esm.js'),
+        import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.21.0/dist/tf-backend-webgl.esm.js'),
+        import('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@3.0.0/dist/pose-detection.esm.js'),
+        import('https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js')
+      ]).catch(e=>{ log('❌ Ошибка загрузки модулей', e); throw e; });
+
+      await tf.setBackend('webgl'); await tf.ready();
+      log('TFJS backend:', tf.getBackend());
+
+      // Настраиваем canvas для превью (dbg)
+      function resizeDbg(){
+        const w = 240, h = 135;
+        dbgCanvas.width = w; dbgCanvas.height = h;
+      }
+      resizeDbg();
+
+      // Создаём детектор полного тела (BlazePose GHUM full)
+      const detector = await posedetection.createDetector(
+        posedetection.SupportedModels.BlazePose,
+        {
+          runtime: 'tfjs',
+          modelType: 'full', // full | lite | heavy
+          enableSmoothing: true
         }
-        
-        async function testCameraFunction() {
-            const success = await game.startCamera();
-            if (success) {
-                alert('✅ Камера работает отлично! Можете запускать игру.');
-            }
+      );
+      log('Pose detector готов');
+
+      // === THREE.JS SCENE ===
+      const scene = new THREE.Scene();
+      scene.background = null; // прозрачный фон
+
+      const camera = new THREE.PerspectiveCamera(55, threeCanvas.clientWidth/threeCanvas.clientHeight, 0.1, 100);
+      camera.position.set(0, 1.6, 3.2);
+
+      const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true, alpha: true, preserveDrawingBuffer:false });
+      function resizeRenderer(){
+        const {clientWidth:w, clientHeight:h} = threeCanvas;
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.setSize(w, h, false);
+        camera.aspect = w/h; camera.updateProjectionMatrix();
+      }
+      const ro = new ResizeObserver(resizeRenderer); ro.observe(threeCanvas); resizeRenderer();
+
+      // Свет
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x222244, 1.0);
+      scene.add(hemi);
+      const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+      dir.position.set(3, 5, 3);
+      dir.castShadow = true; scene.add(dir);
+
+      // Полупрозрачная площадка/туман для глубины
+      const fog = new THREE.FogExp2(0x0b0d10, 0.12); scene.fog = fog;
+
+      // === "Аватар" — 3D‑скелет высокого качества ===
+      // Сферы‑суставы + мягкие цилиндры‑кости, поверх — тонкий мерцающий слой
+      const JOINTS = [
+        'nose','left_eye','right_eye','left_ear','right_ear','left_shoulder','right_shoulder','left_elbow','right_elbow','left_wrist','right_wrist','left_hip','right_hip','left_knee','right_knee','left_ankle','right_ankle','left_heel','right_heel','left_foot_index','right_foot_index'
+      ];
+      const BONES = [
+        ['left_shoulder','right_shoulder'],
+        ['left_shoulder','left_elbow'], ['left_elbow','left_wrist'],
+        ['right_shoulder','right_elbow'], ['right_elbow','right_wrist'],
+        ['left_hip','right_hip'],
+        ['left_shoulder','left_hip'], ['right_shoulder','right_hip'],
+        ['left_hip','left_knee'], ['left_knee','left_ankle'],
+        ['right_hip','right_knee'], ['right_knee','right_ankle'],
+        ['left_ankle','left_heel'], ['left_heel','left_foot_index'],
+        ['right_ankle','right_heel'], ['right_heel','right_foot_index']
+      ];
+
+      const jointMeshes = new Map();
+      const boneMeshes = [];
+      const jointGeo = new THREE.SphereGeometry(0.035, 24, 24);
+      const jointMat = new THREE.MeshPhysicalMaterial({ color: 0x8fb3ff, emissive:0x0, metalness: 0.4, roughness: 0.2, transmission:0.4, thickness:0.02, clearcoat:1, clearcoatRoughness:.1 });
+      const glowMat = new THREE.MeshBasicMaterial({ color:0xbdd2ff, transparent:true, opacity:0.14 });
+
+      for (const j of JOINTS){
+        const core = new THREE.Mesh(jointGeo, jointMat); core.castShadow = true; core.receiveShadow = false;
+        const halo = new THREE.Mesh(new THREE.SphereGeometry(0.05, 18, 18), glowMat); core.add(halo);
+        scene.add(core); jointMeshes.set(j, core);
+      }
+      function makeBone(){
+        const geo = new THREE.CylinderGeometry(0.02, 0.02, 1, 16, 1, true);
+        const mat = new THREE.MeshPhysicalMaterial({color:0x4d7cff, metalness: 0.7, roughness:0.35, clearcoat:1});
+        const m = new THREE.Mesh(geo, mat); m.castShadow = true; scene.add(m); return m;
+      }
+      for (let i=0;i<BONES.length;i++){ boneMeshes.push(makeBone()); }
+
+      // === Мини‑игра: управляем капсулой телом, собираем сферы ===
+      const player = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.5, 8, 16), new THREE.MeshStandardMaterial({color:0xB9F24B, roughness:.4, metalness:.1}));
+      player.position.set(0, 0.9, 0);
+      player.castShadow = true; scene.add(player);
+
+      // Декор/уровень
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(20, 100), new THREE.MeshPhongMaterial({color:0x0c1016, emissive:0x0, shininess:30, opacity:.95, transparent:true}));
+      plane.rotation.x = -Math.PI/2; plane.position.y = 0; plane.receiveShadow = true; scene.add(plane);
+
+      const pickups = [];
+      const pickGeo = new THREE.IcosahedronGeometry(0.12, 1);
+      const pickMat = new THREE.MeshStandardMaterial({color:0xff66cc, emissive:0x07111a, roughness:.2, metalness:.6});
+      for (let i=0;i<14;i++){
+        const m = new THREE.Mesh(pickGeo, pickMat);
+        m.position.set((Math.random()*2-1)*2.4, 0.6+Math.random()*1.5, -i*2 - 3);
+        m.castShadow = true; scene.add(m); pickups.push(m);
+      }
+      const score = { value:0 };
+
+      // Управление телом
+      let jumpCooldown = 0;
+      function controlByPose(pose){
+        if (!pose) return;
+        const k = indexByName(pose);
+        const lShoulder = k('left_shoulder');
+        const rShoulder = k('right_shoulder');
+        const lHip = k('left_hip');
+        const rHip = k('right_hip');
+        const lWrist = k('left_wrist');
+        const rWrist = k('right_wrist');
+        const nose = k('nose');
+        if (!lShoulder || !rShoulder || !lHip || !rHip) return;
+
+        // Нормализуем X по центру тела
+        const centerX = (lHip.x + rHip.x + lShoulder.x + rShoulder.x) / 4;
+        const leftRight = THREE.MathUtils.clamp(-(centerX - 0.5)*4, -1.5, 1.5); // -1.5..1.5
+        player.position.x += (leftRight - player.position.x) * 0.15; // сглаживание
+
+        // Прыжок — обе руки выше плеч
+        const shouldersY = (lShoulder.y + rShoulder.y)/2;
+        const wristsY = Math.min(lWrist?.y ?? 1, rWrist?.y ?? 1);
+        const handsUp = wristsY < shouldersY - 0.06; // руки заметно выше
+        if (jumpCooldown<=0 && handsUp){ player.velocityY = 0.18; jumpCooldown = 30; }
+      }
+
+      // Физика игрока
+      player.velocityY = 0;
+      function updatePlayer(){
+        player.velocityY -= 0.009; // гравитация
+        player.position.y = Math.max(0.9, player.position.y + player.velocityY);
+        if (player.position.y <= 0.9){ player.velocityY = 0; }
+        if (jumpCooldown>0) jumpCooldown--;
+      }
+
+      // Обновление костей/суставов по позе
+      function updateAvatar(pose){
+        if (!pose) return;
+        // Масштабируем нормализованные координаты (0..1) в локальное 3D пространство
+        const SCALE = 2.2; // чем больше — тем крупнее аватар
+        const DEPTH = 1.6; // масштаб глубины
+
+        const k = indexByName(pose);
+        for (const [name, mesh] of jointMeshes){
+          const p = k(name);
+          if (!p) { mesh.visible = false; continue; }
+          mesh.visible = true;
+          const x = (p.x - 0.5) * SCALE;
+          const y = (1 - p.y) * SCALE * 1.2; // инверсия оси Y
+          const z = (p.z || 0) * DEPTH;      // z от модели (отриц — ближе)
+          mesh.position.set(x, y, z);
         }
-        
-        console.log('🎮 Ultimate Body Tracking Game готова к запуску!');
-    </script>
+        // Кости: ориентируем цилиндр от A к B
+        BONES.forEach((pair, idx)=>{
+          const a = jointMeshes.get(pair[0]);
+          const b = jointMeshes.get(pair[1]);
+          const bone = boneMeshes[idx];
+          if (!a.visible || !b.visible){ bone.visible = false; return; }
+          bone.visible = true;
+          const va = a.position, vb = b.position;
+          const mid = va.clone().add(vb).multiplyScalar(0.5);
+          const dir = new THREE.Vector3().subVectors(vb, va);
+          const len = dir.length();
+          bone.position.copy(mid);
+          bone.scale.set(1, len, 1);
+          // Повернуть цилиндр вдоль направления dir
+          bone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+        });
+      }
+
+      function indexByName(pose){
+        const map = new Map();
+        for (const kp of pose.keypoints){ map.set(kp.name || kp.part || kp.position?.name, kp); }
+        return (name)=> map.get(name);
+      }
+
+      // === Главный цикл: поза → аватар → игра ===
+      let lastTrack = performance.now();
+      let trackFrames=0, renderFrames=0, lastFpsT=performance.now(), lastFpsR=performance.now();
+
+      async function tick(){
+        const now = performance.now();
+
+        // 1) ТРЕКИНГ ( ~ 30–60 Гц, по возможности )
+        let pose = null;
+        try{
+          const est = await detector.estimatePoses(video, { flipHorizontal: true });
+          pose = est && est[0] || null;
+          trackFrames++;
+          if (now - lastFpsT > 1000){ $('#fpsT').textContent = trackFrames.toString(); trackFrames = 0; lastFpsT = now; }
+        }catch(e){ log('Ошибка трекинга:', e.message || e); }
+
+        // 2) АВАТАР
+        updateAvatar(pose);
+
+        // 3) ИГРА — управление телом
+        controlByPose(pose);
+        updatePlayer();
+
+        // Скаттер‑эффекты/сбор предметов
+        for (const m of pickups){
+          m.rotation.y += 0.01;
+          const d = m.position.distanceTo(player.position);
+          if (d < 0.45){
+            score.value++;
+            m.position.z -= 30; // телепорт дальше по треку
+          }
+        }
+
+        renderer.render(scene, camera);
+        renderFrames++;
+        if (now - lastFpsR > 1000){ $('#fpsR').textContent = renderFrames.toString(); renderFrames = 0; lastFpsR = now; }
+
+        hud.textContent = `Очки: ${score.value}`;
+        requestAnimationFrame(tick);
+      }
+
+      // Старт цикла после короткой задержки (для стабильности видео размеров)
+      setTimeout(()=>requestAnimationFrame(tick), 60);
+
+      // Отладочный слой (мини‑превью камеры с рисованием ключевых точек)
+      (function dbgLoop(){
+        if (dbgLayer.style.display !== 'none' && video.videoWidth){
+          dbgCanvas.width = video.clientWidth; dbgCanvas.height = video.clientHeight;
+          dbgCtx.drawImage(video, 0, 0, dbgCanvas.width, dbgCanvas.height);
+        }
+        requestAnimationFrame(dbgLoop);
+      })();
+    });
+
+    // Стартовое состояние: скрыть отладку
+    dbgLayer.style.display = 'none';
+  </script>
 </body>
 </html>
