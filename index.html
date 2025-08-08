@@ -1,151 +1,610 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CAMERA BASELINE — запрос гарантирован</title>
-  <style>
-    :root{--bg:#0a0e19;--fg:#eaf0ff;--muted:#9eb2d2;--ok:#66f2b0;--warn:#ffd166;--err:#ff6b6b;--glass:rgba(255,255,255,.06);--brd:rgba(255,255,255,.14)}
-    html,body{height:100%}
-    body{margin:0;background:radial-gradient(1200px 800px at 70% 10%, #162037 0%, #0a0e19 40%, #060912 100%);color:var(--fg);font:500 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .wrap{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
-    header{padding:14px 16px;border-bottom:1px solid var(--brd);background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));backdrop-filter:blur(8px)}
-    h1{margin:0;font-size:18px}
-    main{display:grid;place-items:center;padding:16px}
-    .panel{max-width:880px;width:min(96vw,880px);border:1px solid var(--brd);border-radius:16px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));box-shadow:0 30px 120px rgba(0,0,0,.55);padding:16px}
-    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    .btn{appearance:none;border:1px solid var(--brd);background:var(--glass);color:var(--fg);padding:.7rem 1rem;border-radius:12px;cursor:pointer;transition:.15s}
-    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.12)}
-    .btn[disabled]{opacity:.5;cursor:not-allowed;transform:none}
-    .tag{display:inline-flex;gap:.35rem;align-items:center;padding:.25rem .6rem;border:1px solid var(--brd);border-radius:999px;background:var(--glass)}
-    .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
-    #status{margin-left:auto}
-    #video{width:min(85vw,720px);max-height:65vh;border-radius:12px;border:1px solid var(--brd);display:none;box-shadow:0 16px 60px rgba(0,0,0,.6)}
-    #notes{opacity:.85;margin-top:12px}
-    footer{padding:10px 16px;display:flex;gap:8px;justify-content:center}
-    .hide{display:none !important}
-    /* гарантируем кликабельность: кнопки поверх всего */
-    header, .panel, footer{z-index:10; position:relative}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Avatar Body Tracking Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            color: white;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #videoElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            display: none;
+        }
+
+        #canvasElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        #avatarCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+        }
+
+        #gameUI {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+        }
+
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+        }
+
+        #score {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #gameStatus {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #ffeb3b, #ff9800);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-float 2s ease-out forwards;
+        }
+
+        @keyframes particle-float {
+            0% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.5) translateY(-100px);
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>CAMERA BASELINE — чистый старт (кнопка кликается, запрос появляется)</h1>
-    </header>
-
-    <main>
-      <div class="panel">
-        <div class="row" style="margin-bottom:10px">
-          <button id="start" class="btn">▶ Включить камеру</button>
-          <button id="stop" class="btn" disabled>⏹ Отключить</button>
-          <button id="toggle" class="btn" disabled>📷 Показать превью</button>
-          <span id="status" class="tag warn">Готово</span>
+    <div id="gameContainer">
+        <video id="videoElement" autoplay muted playsinline></video>
+        <canvas id="canvasElement"></canvas>
+        <canvas id="avatarCanvas"></canvas>
+        
+        <div id="gameUI">
+            <div id="score">Счёт: 0</div>
+            <div id="gameStatus">Готов к игре</div>
+            <div id="tracking">Трекинг: Отключен</div>
         </div>
-        <div id="diag" class="row" style="gap:6px;flex-wrap:wrap"></div>
-        <video id="video" playsinline muted></video>
-        <div id="notes">
-          <ul>
-            <li>Запрос к камере появляется <b>только</b> на <b>HTTPS</b> или <b>localhost</b>. На <code>file://</code> и <code>http://</code> — диалога не будет по правилам браузеров.</li>
-            <li>Если раньше нажимал(а) «Не разрешать», сбрось разрешения в настройках сайта (значок замка в адресной строке).</li>
-            <li>Если эта страница внутри <i>iframe</i>, у фрейма должен быть <code>allow="camera; microphone"</code>.</li>
-          </ul>
+
+        <div id="instructions">
+            <h2>🎮 3D Avatar Body Tracking Game</h2>
+            <p>Расположите ноутбук так, чтобы всё тело было видно в камере</p>
+            <p>Управляйте аватаром движениями тела</p>
+            <p>Собирайте кристаллы и уклоняйтесь от препятствий</p>
+            <button class="button" onclick="startGame()">Начать игру</button>
+            <button class="button" onclick="toggleCamera()">Тест камеры</button>
         </div>
-      </div>
-    </main>
 
-    <footer>
-      <small class="tag">v1.0 — минимальная база. Когда камера ок — добавим 3D‑аватар и игру.</small>
-    </footer>
-  </div>
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p style="margin-top: 20px;">Загрузка моделей...</p>
+        </div>
+    </div>
 
-  <script>
-    (function(){
-      const startBtn = document.getElementById('start');
-      const stopBtn  = document.getElementById('stop');
-      const toggleBtn= document.getElementById('toggle');
-      const statusEl = document.getElementById('status');
-      const diagEl   = document.getElementById('diag');
-      const videoEl  = document.getElementById('video');
-      let stream = null;
+    <!-- Подключение библиотек -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.1"></script>
 
-      // ===== Диагностика окружения (до клика) =====
-      const isTop    = (window.top === window);
-      const isSecure = window.isSecureContext || ['localhost','127.0.0.1','::1'].includes(location.hostname);
-      const hasGUM   = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-      const ua       = navigator.userAgent;
-      const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    <script>
+        // Глобальные переменные
+        let scene, camera, renderer, avatar, mixer;
+        let videoElement, canvasElement, avatarCanvas;
+        let holistic, bodyPixNet;
+        let gameRunning = false;
+        let score = 0;
+        let avatarPosition = { x: 0, y: 0, z: 0 };
+        let gameObjects = [];
+        let particles = [];
 
-      function tag(txt){ const s=document.createElement('span'); s.className='tag'; s.textContent=txt; return s; }
-      diagEl.append(tag('Top: '+(isTop?'✅':'❌')));
-      diagEl.append(tag('Secure: '+(isSecure?'✅':'❌')));
-      diagEl.append(tag('getUserMedia: '+(hasGUM?'✅':'❌')));
-      if(isSafari) diagEl.append(tag('Safari'));
+        // Инициализация
+        async function init() {
+            console.log('Инициализация приложения...');
+            
+            videoElement = document.getElementById('videoElement');
+            canvasElement = document.getElementById('canvasElement');
+            avatarCanvas = document.getElementById('avatarCanvas');
 
-      function setStatus(msg, kind){ statusEl.textContent = msg; statusEl.className = 'tag ' + (kind||''); }
-
-      // ===== Безопасные флаги для iOS перед play() =====
-      videoEl.muted = true; videoEl.setAttribute('muted','');
-      videoEl.playsInline = true; videoEl.setAttribute('playsinline','');
-
-      async function startCamera(){
-        if(!isSecure) throw new Error('Нужен HTTPS или localhost — на http/file:// камера не запрашивается');
-        if(!hasGUM) throw new Error('navigator.mediaDevices.getUserMedia недоступен в этом браузере');
-        // Проверяем наличие видеоустройств заранее
-        try{
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const hasCam = devices.some(d=>d.kind === 'videoinput');
-          if(!hasCam) throw new Error('Камера не обнаружена (videoinput)');
-        }catch(e){ /* enumerateDevices может требовать разрешения — продолжим, пусть спросит */ }
-
-        const constraints = { video: { facingMode: 'user', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio: false };
-        const s = await navigator.mediaDevices.getUserMedia(constraints);
-        videoEl.srcObject = s;
-        await videoEl.play().catch(()=>{});
-        stream = s;
-      }
-
-      function stopCamera(){
-        if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-        videoEl.srcObject = null;
-      }
-
-      // ===== Обработчики (внутри клика — важно для политик браузеров) =====
-      startBtn.addEventListener('click', async ()=>{
-        try{
-          setStatus('Запрашиваю камеру…','warn');
-          startBtn.disabled = true;
-          await startCamera();
-          setStatus('Камера включена','ok');
-          stopBtn.disabled = false; toggleBtn.disabled = false; videoEl.style.display = 'block';
-        }catch(err){
-          console.error(err);
-          startBtn.disabled = false;
-          let msg = String(err && err.message || err);
-          if(/NotAllowedError|denied|Permission/i.test(msg)) msg = 'Доступ отклонён. Разреши камеру в настройках сайта/браузера.';
-          if(/secure|HTTPS|localhost|http\:|file\:\/\//i.test(msg)) msg = 'Нужен HTTPS (или localhost). На http/file:// камера не работает.';
-          if(/NotFoundError|device|videoinput|camera not found/i.test(msg)) msg = 'Камера не найдена. Проверь подключение/системные разрешения.';
-          if(window.top !== window) msg += ' (если это iframe — добавь allow="camera; microphone")';
-          setStatus('Ошибка: '+msg, 'err');
+            await initThreeJS();
+            await initBodyPix();
+            await initMediaPipe();
+            
+            console.log('Инициализация завершена');
         }
-      });
 
-      stopBtn.addEventListener('click', ()=>{
-        stopCamera();
-        setStatus('Камера выключена','warn');
-        stopBtn.disabled = true; toggleBtn.disabled = true; videoEl.style.display = 'none';
-        startBtn.disabled = false;
-      });
+        // Инициализация Three.js
+        async function initThreeJS() {
+            console.log('Инициализация Three.js...');
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: avatarCanvas, 
+                alpha: true,
+                antialias: true 
+            });
+            
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
 
-      toggleBtn.addEventListener('click', ()=>{
-        const vis = videoEl.style.display !== 'none';
-        videoEl.style.display = vis ? 'none' : 'block';
-        toggleBtn.textContent = vis ? '📷 Показать превью' : '📷 Скрыть превью';
-      });
+            // Освещение
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
 
-      // Пояснение, если точно не secure
-      if(!isSecure){ setStatus('Нужен HTTPS или localhost', 'err'); }
-    })();
-  </script>
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Создание аватара
+            await createAvatar();
+            
+            camera.position.set(0, 1.6, 3);
+            camera.lookAt(0, 1, 0);
+
+            animate();
+        }
+
+        // Создание 3D аватара
+        async function createAvatar() {
+            console.log('Создание аватара...');
+            
+            // Создаем простого, но качественного аватара
+            const geometry = new THREE.CapsuleGeometry(0.3, 1.4, 8, 16);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x00ff88,
+                shininess: 100,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            avatar = new THREE.Mesh(geometry, material);
+            avatar.position.set(0, 0.7, 0);
+            avatar.castShadow = true;
+            scene.add(avatar);
+
+            // Добавляем голову
+            const headGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            const headMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffddaa,
+                shininess: 50
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 1.6, 0);
+            head.castShadow = true;
+            scene.add(head);
+
+            // Добавляем руки
+            const armGeometry = new THREE.CapsuleGeometry(0.08, 0.6, 6, 8);
+            const armMaterial = new THREE.MeshPhongMaterial({ color: 0xffddaa });
+            
+            const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+            leftArm.position.set(-0.4, 1.2, 0);
+            leftArm.castShadow = true;
+            scene.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+            rightArm.position.set(0.4, 1.2, 0);
+            rightArm.castShadow = true;
+            scene.add(rightArm);
+
+            // Группируем все части аватара
+            avatar.userData = { head, leftArm, rightArm };
+        }
+
+        // Инициализация BodyPix для удаления фона
+        async function initBodyPix() {
+            console.log('Загрузка BodyPix...');
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                bodyPixNet = await bodyPix.load({
+                    architecture: 'MobileNetV1',
+                    outputStride: 16,
+                    multiplier: 0.75,
+                    quantBytes: 2
+                });
+                console.log('BodyPix загружен');
+            } catch (error) {
+                console.error('Ошибка загрузки BodyPix:', error);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Инициализация MediaPipe
+        async function initMediaPipe() {
+            console.log('Инициализация MediaPipe...');
+            
+            holistic = new Holistic({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
+            });
+
+            holistic.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: true,
+                smoothSegmentation: true,
+                refineFaceLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            holistic.onResults(onHolisticResults);
+        }
+
+        // Обработка результатов MediaPipe
+        function onHolisticResults(results) {
+            if (!gameRunning) return;
+
+            updateTracking(results);
+            updateAvatar(results);
+            removeBackground(results);
+        }
+
+        // Обновление трекинга
+        function updateTracking(results) {
+            const trackingStatus = document.getElementById('tracking');
+            
+            if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+                trackingStatus.textContent = 'Трекинг: Активен ✅';
+                trackingStatus.style.color = '#4CAF50';
+            } else {
+                trackingStatus.textContent = 'Трекинг: Потерян ❌';
+                trackingStatus.style.color = '#f44336';
+            }
+        }
+
+        // Обновление позиции аватара
+        function updateAvatar(results) {
+            if (!results.poseLandmarks || !avatar) return;
+
+            const pose = results.poseLandmarks;
+            
+            // Используем центральные точки для управления
+            const leftShoulder = pose[11];
+            const rightShoulder = pose[12];
+            const leftHip = pose[23];
+            const rightHip = pose[24];
+
+            if (leftShoulder && rightShoulder && leftHip && rightHip) {
+                // Вычисляем центр тела
+                const centerX = (leftShoulder.x + rightShoulder.x + leftHip.x + rightHip.x) / 4;
+                const centerY = (leftShoulder.y + rightShoulder.y + leftHip.y + rightHip.y) / 4;
+
+                // Преобразуем в координаты сцены
+                avatarPosition.x = (centerX - 0.5) * 6; // Масштабируем движение
+                avatarPosition.y = (1 - centerY) * 3; // Инвертируем Y
+                
+                // Плавное движение аватара
+                avatar.position.x = THREE.MathUtils.lerp(avatar.position.x, avatarPosition.x, 0.1);
+                avatar.position.y = THREE.MathUtils.lerp(avatar.position.y, avatarPosition.y, 0.1);
+
+                // Анимация рук
+                const { leftArm, rightArm } = avatar.userData;
+                if (leftArm && rightArm) {
+                    const leftWrist = pose[15];
+                    const rightWrist = pose[16];
+                    
+                    if (leftWrist) {
+                        leftArm.rotation.z = (leftWrist.y - leftShoulder.y) * 2;
+                    }
+                    if (rightWrist) {
+                        rightArm.rotation.z = -(rightWrist.y - rightShoulder.y) * 2;
+                    }
+                }
+            }
+        }
+
+        // Удаление фона
+        async function removeBackground(results) {
+            if (!bodyPixNet || !videoElement) return;
+
+            try {
+                const segmentation = await bodyPixNet.segmentPerson(videoElement, {
+                    flipHorizontal: false,
+                    internalResolution: 'medium',
+                    segmentationThreshold: 0.7
+                });
+
+                const ctx = canvasElement.getContext('2d');
+                canvasElement.width = videoElement.videoWidth;
+                canvasElement.height = videoElement.videoHeight;
+
+                // Создаем маску для удаления фона
+                const foregroundColor = {r: 0, g: 0, b: 0, a: 0};
+                const backgroundColor = {r: 0, g: 0, b: 0, a: 0};
+                const backgroundDarkeningMask = bodyPix.toMask(
+                    segmentation, foregroundColor, backgroundColor
+                );
+
+                // Применяем маску
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.putImageData(backgroundDarkeningMask, 0, 0);
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.drawImage(videoElement, 0, 0);
+            } catch (error) {
+                console.error('Ошибка удаления фона:', error);
+            }
+        }
+
+        // Запуск камеры
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: 1280, 
+                        height: 720,
+                        facingMode: 'user'
+                    }
+                });
+                
+                videoElement.srcObject = stream;
+                
+                videoElement.onloadedmetadata = () => {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+                    
+                    const camera = new Camera(videoElement, {
+                        onFrame: async () => {
+                            await holistic.send({image: videoElement});
+                        },
+                        width: 1280,
+                        height: 720
+                    });
+                    camera.start();
+                };
+                
+                return true;
+            } catch (error) {
+                console.error('Ошибка доступа к камере:', error);
+                alert('Не удалось получить доступ к камере. Проверьте разрешения.');
+                return false;
+            }
+        }
+
+        // Создание игровых объектов
+        function createGameObjects() {
+            // Создаем кристаллы для сбора
+            for (let i = 0; i < 5; i++) {
+                const crystalGeometry = new THREE.OctahedronGeometry(0.2);
+                const crystalMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x00ffff,
+                    emissive: 0x004444,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
+                crystal.position.set(
+                    (Math.random() - 0.5) * 8,
+                    Math.random() * 3 + 0.5,
+                    (Math.random() - 0.5) * 4
+                );
+                crystal.userData = { type: 'crystal', collected: false };
+                scene.add(crystal);
+                gameObjects.push(crystal);
+            }
+        }
+
+        // Игровая логика
+        function gameLogic() {
+            if (!gameRunning || !avatar) return;
+
+            // Вращение кристаллов
+            gameObjects.forEach(obj => {
+                if (obj.userData.type === 'crystal' && !obj.userData.collected) {
+                    obj.rotation.y += 0.02;
+                    
+                    // Проверка коллизии с аватаром
+                    const distance = avatar.position.distanceTo(obj.position);
+                    if (distance < 0.5) {
+                        obj.userData.collected = true;
+                        obj.visible = false;
+                        score += 10;
+                        updateScore();
+                        createParticleEffect(obj.position);
+                        
+                        // Создаем новый кристалл
+                        setTimeout(() => {
+                            obj.position.set(
+                                (Math.random() - 0.5) * 8,
+                                Math.random() * 3 + 0.5,
+                                (Math.random() - 0.5) * 4
+                            );
+                            obj.userData.collected = false;
+                            obj.visible = true;
+                        }, 2000);
+                    }
+                }
+            });
+        }
+
+        // Создание эффекта частиц
+        function createParticleEffect(position) {
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = `${(position.x / 8 + 0.5) * window.innerWidth}px`;
+                particle.style.top = `${(0.5 - position.y / 3) * window.innerHeight}px`;
+                document.body.appendChild(particle);
+                
+                setTimeout(() => {
+                    particle.remove();
+                }, 2000);
+            }
+        }
+
+        // Обновление счёта
+        function updateScore() {
+            document.getElementById('score').textContent = `Счёт: ${score}`;
+        }
+
+        // Анимационный цикл
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            gameLogic();
+            
+            if (mixer) {
+                mixer.update(0.016);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Запуск игры
+        async function startGame() {
+            document.getElementById('instructions').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            
+            const cameraStarted = await startCamera();
+            if (!cameraStarted) {
+                document.getElementById('instructions').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+            
+            gameRunning = true;
+            score = 0;
+            updateScore();
+            
+            createGameObjects();
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('gameStatus').textContent = 'Игра запущена!';
+            
+            console.log('Игра запущена!');
+        }
+
+        // Переключение камеры
+        async function toggleCamera() {
+            if (videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+                document.getElementById('tracking').textContent = 'Трекинг: Отключен';
+            } else {
+                await startCamera();
+            }
+        }
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        // Инициализация при загрузке страницы
+        window.addEventListener('load', init);
+    </script>
 </body>
 </html>
