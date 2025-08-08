@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mega Quality 3D Avatar Body Tracking Game</title>
+    <title>Ultimate 3D Avatar Body Tracking Game</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%);
             overflow: hidden;
             color: white;
             height: 100vh;
@@ -23,87 +23,54 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* Видео скрыто, используется только для обработки */
         #videoElement {
             position: absolute;
             top: -9999px;
-            left: -9999px;
             width: 640px;
             height: 480px;
         }
 
-        /* Канвас для отображения результата */
-        #gameCanvas {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.1);
+        #mainCanvas {
+            width: 100%;
+            height: 100%;
+            background: transparent;
             cursor: none;
         }
 
         /* UI элементы */
-        #gameUI {
+        .ui-panel {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 100;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            min-width: 300px;
-            font-size: 16px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            min-width: 320px;
         }
 
-        #instructions {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 200;
-            background: rgba(0, 0, 0, 0.9);
-            padding: 40px;
-            border-radius: 25px;
-            backdrop-filter: blur(20px);
-            max-width: 600px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-        }
-
-        .mega-button {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24, #ff9ff3, #54a0ff);
-            background-size: 400% 400%;
-            animation: gradientShift 3s ease infinite;
-            color: white;
-            border: none;
-            padding: 18px 36px;
-            border-radius: 30px;
-            font-size: 18px;
+        .score-text {
+            font-size: 28px;
             font-weight: bold;
-            cursor: pointer;
-            margin: 15px;
-            transition: all 0.4s ease;
-            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
         }
 
-        .mega-button:hover {
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 15px 40px rgba(255, 107, 107, 0.7);
+        .status-row {
+            display: flex;
+            align-items: center;
+            margin-top: 15px;
+            font-size: 16px;
         }
 
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .status-indicator {
-            display: inline-block;
+        .status-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
@@ -111,245 +78,296 @@
             animation: pulse 2s infinite;
         }
 
-        .status-active { background: #4CAF50; }
-        .status-warning { background: #FF9800; }
-        .status-error { background: #f44336; }
+        .status-active { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
+        .status-warning { background: #FF9800; box-shadow: 0 0 10px #FF9800; }
+        .status-error { background: #f44336; box-shadow: 0 0 10px #f44336; }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
         }
 
-        .loading-screen {
+        /* Стартовое меню */
+        .start-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.92);
+            padding: 50px;
+            border-radius: 30px;
+            backdrop-filter: blur(25px);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            max-width: 700px;
+        }
+
+        .start-button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            background-size: 400% 400%;
+            animation: gradientFlow 4s ease infinite;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 35px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 15px;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .start-button:hover {
+            transform: translateY(-5px) scale(1.08);
+            box-shadow: 0 20px 50px rgba(255, 107, 107, 0.8);
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Частицы для эффектов */
+        .game-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #ffeb3b, #ff9800);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleBurst 2s ease-out forwards;
+            z-index: 50;
+        }
+
+        @keyframes particleBurst {
+            0% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.2) translateY(-200px) rotate(720deg);
+            }
+        }
+
+        .loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            flex-direction: column;
+            display: none;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
             z-index: 300;
         }
 
-        .mega-spinner {
-            width: 80px;
-            height: 80px;
-            border: 8px solid rgba(255, 255, 255, 0.1);
-            border-top: 8px solid #ff6b6b;
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(255, 255, 255, 0.1);
+            border-top: 6px solid #4ecdc4;
             border-radius: 50%;
-            animation: megaSpin 1s linear infinite;
+            animation: spin 1s linear infinite;
         }
 
-        @keyframes megaSpin {
+        @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        .particle {
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: radial-gradient(circle, #ffeb3b, #ff9800);
-            border-radius: 50%;
-            pointer-events: none;
-            animation: particleExplode 1.5s ease-out forwards;
-            z-index: 50;
-        }
-
-        @keyframes particleExplode {
-            0% {
-                opacity: 1;
-                transform: scale(1) translateY(0) rotate(0deg);
-            }
-            100% {
-                opacity: 0;
-                transform: scale(0.3) translateY(-150px) rotate(360deg);
-            }
-        }
-
-        .score-display {
-            font-size: 32px;
-            font-weight: bold;
-            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.7);
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .combo-display {
-            font-size: 24px;
-            color: #ffeb3b;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-            margin-top: 10px;
+        .error-message {
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px;
+            text-align: center;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <video id="videoElement" autoplay muted playsinline></video>
-        <canvas id="gameCanvas"></canvas>
+        <canvas id="mainCanvas"></canvas>
         
-        <div id="gameUI">
-            <div class="score-display">Очки: <span id="scoreValue">0</span></div>
-            <div class="combo-display">Комбо: x<span id="comboValue">1</span></div>
-            <div style="margin-top: 15px;">
-                <span class="status-indicator status-error" id="trackingIndicator"></span>
-                <span id="trackingStatus">Трекинг: Инициализация</span>
+        <div class="ui-panel">
+            <div class="score-text">ОЧКИ: <span id="scoreDisplay">0</span></div>
+            <div style="font-size: 18px; margin-top: 10px; color: #ffeb3b;">
+                КОМБО: x<span id="comboDisplay">1.0</span>
             </div>
-            <div style="margin-top: 10px; font-size: 14px;">
-                FPS: <span id="fpsDisplay">0</span>
+            <div class="status-row">
+                <div class="status-dot status-error" id="trackingDot"></div>
+                <span id="trackingText">Инициализация...</span>
+            </div>
+            <div class="status-row">
+                <div class="status-dot status-error" id="cameraDot"></div>
+                <span id="cameraText">Камера: Отключена</span>
+            </div>
+            <div style="margin-top: 15px; font-size: 14px; opacity: 0.8;">
+                FPS: <span id="fpsCounter">0</span>
             </div>
         </div>
 
-        <div id="instructions">
-            <h1>🎮 MEGA 3D AVATAR TRACKING GAME</h1>
-            <h2>✨ Мега качественная игра с полным трекингом тела ✨</h2>
-            <p style="margin: 20px 0; font-size: 18px; line-height: 1.6;">
-                🎯 Поставьте ноутбук так, чтобы всё тело было видно<br>
-                🎯 Управляйте мега-качественным 3D аватаром телом<br>
-                🎯 Собирайте кристаллы и уклоняйтесь от препятствий<br>
-                🎯 Фон удаляется автоматически - только аватар!
+        <div class="start-menu" id="startMenu">
+            <h1 style="font-size: 36px; margin-bottom: 20px;">
+                🎮 ULTIMATE 3D AVATAR GAME
+            </h1>
+            <h2 style="color: #4ecdc4; margin-bottom: 30px;">
+                Мега-качественный трекинг всего тела
+            </h2>
+            <p style="font-size: 18px; line-height: 1.8; margin-bottom: 30px;">
+                🎯 Поставьте ноутбук так, чтобы всё тело попадало в кадр<br>
+                🎯 Управляйте 3D аватаром движениями своего тела<br>
+                🎯 Собирайте энергетические кристаллы<br>
+                🎯 Фон автоматически удаляется
             </p>
-            <button class="mega-button" onclick="initializeGame()">🚀 МЕГА ПОГНАЛИ!</button>
-            <button class="mega-button" onclick="testCamera()">📹 Тест камеры</button>
+            <button class="start-button" onclick="startUltimateGame()">
+                🚀 ЗАПУСТИТЬ ИГРУ
+            </button>
+            <button class="start-button" onclick="testCameraFunction()">
+                📷 ПРОВЕРИТЬ КАМЕРУ
+            </button>
         </div>
 
-        <div id="loadingScreen" class="loading-screen" style="display: none;">
-            <div class="mega-spinner"></div>
-            <h2 style="margin-top: 30px;">Загрузка мега-качественных моделей...</h2>
-            <p id="loadingText">Подготовка нейросетей...</p>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <h3 style="margin-top: 30px;">Загрузка AI моделей...</h3>
+            <p id="loadingStatus" style="margin-top: 10px; opacity: 0.8;">Инициализация...</p>
         </div>
+
+        <div class="error-message" id="errorMessage"></div>
     </div>
 
-    <!-- Подключение проверенных библиотек -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.20.0/dist/tf-core.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.20.0/dist/tf-converter.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.20.0/dist/tf-backend-webgl.js"></script>
+    <!-- Подключение библиотек -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation@1.0.2/dist/body-segmentation.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r158/three.min.js"></script>
 
     <script>
-        // Глобальные переменные для мега-качественной игры
-        class MegaGame {
+        // Главный класс игры
+        class UltimateBodyTrackingGame {
             constructor() {
-                this.canvas = document.getElementById('gameCanvas');
+                this.canvas = document.getElementById('mainCanvas');
                 this.ctx = this.canvas.getContext('2d');
                 this.video = document.getElementById('videoElement');
                 
-                // Игровые параметры
-                this.score = 0;
-                this.combo = 1;
+                // Состояние игры
+                this.isInitialized = false;
                 this.isRunning = false;
-                this.lastTime = 0;
+                this.score = 0;
+                this.combo = 1.0;
                 this.fps = 0;
                 this.frameCount = 0;
+                this.lastTime = performance.now();
                 
                 // AI модели
                 this.poseDetector = null;
-                this.segmenter = null;
+                this.bodySegmenter = null;
                 
                 // Игровые объекты
                 this.avatar = {
                     x: 0,
                     y: 0,
-                    scale: 1,
-                    rotation: 0,
                     keypoints: [],
-                    visible: true
+                    confidence: 0
                 };
                 
                 this.crystals = [];
-                this.obstacles = [];
                 this.particles = [];
                 
-                // Настройки трекинга
-                this.trackingQuality = 0;
-                this.backgroundRemoved = true;
-                
                 this.setupCanvas();
-                this.initializeModels();
+                this.initializeAI();
             }
             
             setupCanvas() {
-                const resizeCanvas = () => {
+                const resize = () => {
                     this.canvas.width = window.innerWidth;
                     this.canvas.height = window.innerHeight;
                 };
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
+                resize();
+                window.addEventListener('resize', resize);
             }
             
-            async initializeModels() {
+            async initializeAI() {
                 try {
-                    this.showLoading('Загрузка MoveNet Lightning...');
+                    this.showLoading('Загрузка системы трекинга...');
                     
-                    // Используем лучшую модель согласно исследованиям
+                    // Инициализация детектора поз
+                    this.updateLoadingStatus('Загрузка MoveNet...');
                     this.poseDetector = await poseDetection.createDetector(
                         poseDetection.SupportedModels.MoveNet,
                         {
-                            modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+                            modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
                             enableSmoothing: true,
-                            enableTracking: true
                         }
                     );
                     
-                    this.showLoading('Загрузка Body Segmentation...');
-                    
-                    // Для удаления фона
-                    this.segmenter = await bodySegmentation.createSegmenter(
-                        bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation,
+                    // Инициализация сегментации
+                    this.updateLoadingStatus('Загрузка Body Segmentation...');
+                    this.bodySegmenter = await bodySegmentation.createSegmenter(
+                        bodySegmentation.SupportedModels.SelfieSegmentation,
                         {
-                            runtime: 'mediapipe',
-                            solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation',
-                            modelType: 'general'
+                            runtime: 'tfjs'
                         }
                     );
                     
-                    this.showLoading('Модели загружены! Готовы к мега-игре!');
+                    this.isInitialized = true;
+                    this.hideLoading();
+                    this.updateStatus('Система готова!', 'active');
                     
-                    console.log('🚀 Все модели успешно загружены!');
+                    console.log('✅ AI модели успешно загружены');
                     
                 } catch (error) {
-                    console.error('Ошибка загрузки моделей:', error);
-                    this.updateStatus('Ошибка загрузки моделей', 'error');
+                    console.error('❌ Ошибка инициализации AI:', error);
+                    this.showError('Ошибка загрузки AI моделей: ' + error.message);
+                    this.hideLoading();
                 }
             }
             
             async startCamera() {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
+                    this.updateLoadingStatus('Запуск камеры...');
+                    
+                    const constraints = {
                         video: {
                             width: { ideal: 1280 },
                             height: { ideal: 720 },
                             facingMode: 'user',
                             frameRate: { ideal: 30 }
                         }
-                    });
+                    };
                     
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     this.video.srcObject = stream;
-                    await new Promise(resolve => {
-                        this.video.onloadedmetadata = resolve;
-                    });
                     
-                    this.updateStatus('Камера активна', 'active');
-                    return true;
+                    return new Promise((resolve) => {
+                        this.video.onloadedmetadata = () => {
+                            this.updateCameraStatus('Камера: Активна', 'active');
+                            resolve(true);
+                        };
+                    });
                     
                 } catch (error) {
-                    console.error('Ошибка доступа к камере:', error);
-                    this.updateStatus('Ошибка камеры', 'error');
-                    alert('Не удалось получить доступ к камере. Проверьте разрешения.');
+                    console.error('❌ Ошибка камеры:', error);
+                    this.showError('Не удалось запустить камеру. Проверьте разрешения.');
+                    this.updateCameraStatus('Камера: Ошибка', 'error');
                     return false;
                 }
             }
             
             async detectPose() {
-                if (!this.poseDetector || !this.video.readyState === 4) return null;
+                if (!this.poseDetector || this.video.readyState !== 4) {
+                    return null;
+                }
                 
                 try {
                     const poses = await this.poseDetector.estimatePoses(this.video);
@@ -360,133 +378,75 @@
                 }
             }
             
-            async removeBackground() {
-                if (!this.segmenter || !this.video.readyState === 4) return null;
-                
-                try {
-                    const segmentation = await this.segmenter.segmentPeople(this.video);
-                    return segmentation;
-                } catch (error) {
-                    console.error('Ошибка удаления фона:', error);
-                    return null;
-                }
-            }
-            
             updateAvatar(pose) {
                 if (!pose || !pose.keypoints) return;
                 
                 this.avatar.keypoints = pose.keypoints;
+                this.avatar.confidence = pose.score || 0;
                 
-                // Находим центр тела для позиционирования аватара
+                // Находим центр тела
                 const nose = pose.keypoints.find(kp => kp.name === 'nose');
                 const leftHip = pose.keypoints.find(kp => kp.name === 'left_hip');
                 const rightHip = pose.keypoints.find(kp => kp.name === 'right_hip');
                 
-                if (nose && leftHip && rightHip) {
+                if (nose && leftHip && rightHip && nose.score > 0.3) {
                     const centerX = (leftHip.x + rightHip.x) / 2;
                     const centerY = (nose.y + leftHip.y + rightHip.y) / 3;
                     
-                    // Преобразуем в координаты canvas
+                    // Преобразование координат
                     this.avatar.x = (centerX / this.video.videoWidth) * this.canvas.width;
                     this.avatar.y = (centerY / this.video.videoHeight) * this.canvas.height;
-                    
-                    // Вычисляем масштаб на основе размера тела
-                    const bodyHeight = Math.abs(nose.y - (leftHip.y + rightHip.y) / 2);
-                    this.avatar.scale = Math.max(0.5, Math.min(2, bodyHeight / this.video.videoHeight * 3));
                 }
                 
-                // Обновляем качество трекинга
-                const visibleKeypoints = pose.keypoints.filter(kp => kp.score > 0.3).length;
-                this.trackingQuality = visibleKeypoints / pose.keypoints.length;
+                // Обновляем статус трекинга
+                const visiblePoints = pose.keypoints.filter(kp => kp.score > 0.3).length;
+                const quality = visiblePoints / pose.keypoints.length;
                 
-                if (this.trackingQuality > 0.7) {
-                    this.updateStatus('Мега-трекинг активен!', 'active');
-                } else if (this.trackingQuality > 0.4) {
-                    this.updateStatus('Трекинг работает', 'warning');
+                if (quality > 0.7) {
+                    this.updateStatus('Отличный трекинг', 'active');
+                } else if (quality > 0.4) {
+                    this.updateStatus('Средний трекинг', 'warning');
                 } else {
                     this.updateStatus('Слабый трекинг', 'error');
                 }
             }
             
-            drawMegaAvatar() {
+            drawAvatar() {
                 if (!this.avatar.keypoints.length) return;
                 
                 const ctx = this.ctx;
                 
-                // Сохраняем состояние canvas
-                ctx.save();
+                // Рисуем соединения
+                this.drawSkeleton();
                 
-                // Применяем трансформации
-                ctx.translate(this.avatar.x, this.avatar.y);
-                ctx.scale(this.avatar.scale, this.avatar.scale);
-                ctx.rotate(this.avatar.rotation);
-                
-                // Рисуем мега-качественного аватара
-                this.drawAvatarBody();
-                this.drawAvatarKeypoints();
-                this.drawAvatarConnections();
-                
-                // Восстанавливаем состояние canvas
-                ctx.restore();
-            }
-            
-            drawAvatarBody() {
-                const ctx = this.ctx;
-                
-                // Создаем градиент для тела
-                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 100);
-                gradient.addColorStop(0, 'rgba(100, 200, 255, 0.8)');
-                gradient.addColorStop(0.5, 'rgba(50, 150, 255, 0.6)');
-                gradient.addColorStop(1, 'rgba(0, 100, 200, 0.4)');
-                
-                // Рисуем основу аватара
-                ctx.fillStyle = gradient;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.lineWidth = 3;
-                
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 60, 100, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-            }
-            
-            drawAvatarKeypoints() {
-                const ctx = this.ctx;
-                
+                // Рисуем точки
                 this.avatar.keypoints.forEach((keypoint, index) => {
                     if (keypoint.score < 0.3) return;
                     
-                    const x = (keypoint.x / this.video.videoWidth - 0.5) * 200;
-                    const y = (keypoint.y / this.video.videoHeight - 0.5) * 300;
+                    const x = (keypoint.x / this.video.videoWidth) * this.canvas.width;
+                    const y = (keypoint.y / this.video.videoHeight) * this.canvas.height;
                     
-                    // Мега-качественные точки с эффектами
-                    const pointGradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
-                    pointGradient.addColorStop(0, '#ffff00');
-                    pointGradient.addColorStop(0.5, '#ff6b6b');
-                    pointGradient.addColorStop(1, '#4ecdc4');
+                    // Создаем красивую точку
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 15);
+                    gradient.addColorStop(0, '#ffff00');
+                    gradient.addColorStop(0.5, '#ff6b6b');
+                    gradient.addColorStop(1, 'rgba(255, 107, 107, 0)');
                     
-                    ctx.fillStyle = pointGradient;
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 2;
-                    
+                    ctx.fillStyle = gradient;
                     ctx.beginPath();
-                    ctx.arc(x, y, 6, 0, Math.PI * 2);
+                    ctx.arc(x, y, 8, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.stroke();
                     
-                    // Добавляем пульсирующий эффект
-                    const pulse = Math.sin(Date.now() * 0.01 + index) * 0.5 + 0.5;
+                    // Добавляем свечение
                     ctx.shadowColor = '#ffff00';
-                    ctx.shadowBlur = 10 + pulse * 10;
+                    ctx.shadowBlur = 20;
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 });
             }
             
-            drawAvatarConnections() {
+            drawSkeleton() {
                 const ctx = this.ctx;
-                
-                // Определяем соединения костей
                 const connections = [
                     ['left_shoulder', 'right_shoulder'],
                     ['left_shoulder', 'left_elbow'],
@@ -499,22 +459,24 @@
                     ['right_hip', 'right_knee'],
                     ['right_knee', 'right_ankle'],
                     ['left_shoulder', 'left_hip'],
-                    ['right_shoulder', 'right_hip']
+                    ['right_shoulder', 'right_hip'],
+                    ['nose', 'left_shoulder'],
+                    ['nose', 'right_shoulder']
                 ];
                 
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.strokeStyle = 'rgba(78, 205, 196, 0.8)';
                 ctx.lineWidth = 4;
                 ctx.lineCap = 'round';
                 
-                connections.forEach(([startName, endName]) => {
-                    const start = this.avatar.keypoints.find(kp => kp.name === startName);
-                    const end = this.avatar.keypoints.find(kp => kp.name === endName);
+                connections.forEach(([start, end]) => {
+                    const startPoint = this.avatar.keypoints.find(kp => kp.name === start);
+                    const endPoint = this.avatar.keypoints.find(kp => kp.name === end);
                     
-                    if (start && end && start.score > 0.3 && end.score > 0.3) {
-                        const x1 = (start.x / this.video.videoWidth - 0.5) * 200;
-                        const y1 = (start.y / this.video.videoHeight - 0.5) * 300;
-                        const x2 = (end.x / this.video.videoWidth - 0.5) * 200;
-                        const y2 = (end.y / this.video.videoHeight - 0.5) * 300;
+                    if (startPoint && endPoint && startPoint.score > 0.3 && endPoint.score > 0.3) {
+                        const x1 = (startPoint.x / this.video.videoWidth) * this.canvas.width;
+                        const y1 = (startPoint.y / this.video.videoHeight) * this.canvas.height;
+                        const x2 = (endPoint.x / this.video.videoWidth) * this.canvas.width;
+                        const y2 = (endPoint.y / this.video.videoHeight) * this.canvas.height;
                         
                         ctx.beginPath();
                         ctx.moveTo(x1, y1);
@@ -524,91 +486,85 @@
                 });
             }
             
-            updateGameObjects() {
-                // Обновляем кристаллы
+            generateCrystals() {
+                if (this.crystals.length < 5 && Math.random() < 0.03) {
+                    this.crystals.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        rotation: 0,
+                        scale: 1,
+                        collected: false,
+                        type: Math.floor(Math.random() * 3)
+                    });
+                }
+            }
+            
+            updateCrystals() {
                 this.crystals.forEach((crystal, index) => {
-                    crystal.rotation += 0.05;
-                    crystal.scale = 1 + Math.sin(Date.now() * 0.005 + index) * 0.2;
+                    if (crystal.collected) return;
                     
-                    // Проверяем коллизию с аватаром
+                    crystal.rotation += 0.05;
+                    crystal.scale = 1 + Math.sin(Date.now() * 0.003 + index) * 0.3;
+                    
+                    // Проверка коллизии
                     const distance = Math.sqrt(
                         Math.pow(crystal.x - this.avatar.x, 2) + 
                         Math.pow(crystal.y - this.avatar.y, 2)
                     );
                     
-                    if (distance < 50) {
+                    if (distance < 60) {
                         this.collectCrystal(index);
                     }
-                });
-                
-                // Создаем новые кристаллы
-                if (this.crystals.length < 5 && Math.random() < 0.02) {
-                    this.createCrystal();
-                }
-            }
-            
-            createCrystal() {
-                this.crystals.push({
-                    x: Math.random() * this.canvas.width,
-                    y: Math.random() * this.canvas.height,
-                    rotation: 0,
-                    scale: 1,
-                    type: Math.floor(Math.random() * 3)
                 });
             }
             
             collectCrystal(index) {
                 const crystal = this.crystals[index];
-                this.score += 10 * this.combo;
-                this.combo += 0.1;
+                crystal.collected = true;
                 
-                // Создаем частицы
-                this.createParticles(crystal.x, crystal.y);
+                // Увеличиваем счет
+                this.score += Math.floor(10 * this.combo);
+                this.combo = Math.min(this.combo + 0.1, 5.0);
+                
+                // Создаем эффект
+                this.createParticleExplosion(crystal.x, crystal.y);
                 
                 // Удаляем кристалл
-                this.crystals.splice(index, 1);
+                setTimeout(() => {
+                    this.crystals.splice(index, 1);
+                }, 100);
                 
                 this.updateScoreDisplay();
             }
             
-            createParticles(x, y) {
-                for (let i = 0; i < 12; i++) {
-                    const particle = document.createElement('div');
-                    particle.className = 'particle';
-                    particle.style.left = x + 'px';
-                    particle.style.top = y + 'px';
-                    particle.style.animationDelay = Math.random() * 0.5 + 's';
-                    document.body.appendChild(particle);
-                    
-                    setTimeout(() => particle.remove(), 1500);
-                }
-            }
-            
-            drawGameObjects() {
+            drawCrystals() {
                 const ctx = this.ctx;
                 
-                // Рисуем кристаллы
-                this.crystals.forEach((crystal, index) => {
+                this.crystals.forEach(crystal => {
+                    if (crystal.collected) return;
+                    
                     ctx.save();
                     ctx.translate(crystal.x, crystal.y);
                     ctx.rotate(crystal.rotation);
                     ctx.scale(crystal.scale, crystal.scale);
                     
-                    const colors = ['#ffeb3b', '#ff9800', '#4caf50'];
-                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+                    const colors = ['#ffeb3b', '#e91e63', '#00bcd4'];
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 25);
                     gradient.addColorStop(0, colors[crystal.type]);
-                    gradient.addColorStop(1, 'transparent');
+                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
                     
                     ctx.fillStyle = gradient;
                     ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = 3;
                     
-                    // Рисуем кристалл как ромб
+                    // Рисуем кристалл
                     ctx.beginPath();
-                    ctx.moveTo(0, -20);
-                    ctx.lineTo(15, 0);
-                    ctx.lineTo(0, 20);
-                    ctx.lineTo(-15, 0);
+                    ctx.moveTo(0, -25);
+                    ctx.lineTo(18, -8);
+                    ctx.lineTo(18, 8);
+                    ctx.lineTo(0, 25);
+                    ctx.lineTo(-18, 8);
+                    ctx.lineTo(-18, -8);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
@@ -617,46 +573,60 @@
                 });
             }
             
+            createParticleExplosion(x, y) {
+                for (let i = 0; i < 15; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'game-particle';
+                    particle.style.left = (x + (Math.random() - 0.5) * 40) + 'px';
+                    particle.style.top = (y + (Math.random() - 0.5) * 40) + 'px';
+                    particle.style.animationDelay = (Math.random() * 0.3) + 's';
+                    document.body.appendChild(particle);
+                    
+                    setTimeout(() => particle.remove(), 2000);
+                }
+            }
+            
             drawBackground() {
                 const ctx = this.ctx;
-                
-                // Создаем анимированный фон
                 const time = Date.now() * 0.001;
+                
+                // Анимированный фон
                 const gradient = ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
-                gradient.addColorStop(0, `hsl(${time * 20}, 70%, 20%)`);
-                gradient.addColorStop(0.5, `hsl(${time * 20 + 60}, 70%, 15%)`);
-                gradient.addColorStop(1, `hsl(${time * 20 + 120}, 70%, 25%)`);
+                gradient.addColorStop(0, `hsl(${time * 10}, 50%, 10%)`);
+                gradient.addColorStop(0.5, `hsl(${time * 10 + 60}, 60%, 8%)`);
+                gradient.addColorStop(1, `hsl(${time * 10 + 120}, 50%, 15%)`);
                 
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 
                 // Добавляем звезды
-                for (let i = 0; i < 50; i++) {
-                    const x = (Math.sin(time * 0.1 + i) * 100 + this.canvas.width / 2 + i * 50) % this.canvas.width;
-                    const y = (Math.cos(time * 0.15 + i) * 50 + this.canvas.height / 2 + i * 30) % this.canvas.height;
-                    const opacity = Math.sin(time * 2 + i) * 0.5 + 0.5;
+                for (let i = 0; i < 100; i++) {
+                    const x = (Math.sin(time * 0.05 + i) * 200 + this.canvas.width / 2 + i * 20) % this.canvas.width;
+                    const y = (Math.cos(time * 0.08 + i) * 100 + this.canvas.height / 2 + i * 15) % this.canvas.height;
+                    const alpha = Math.sin(time * 3 + i) * 0.5 + 0.5;
                     
-                    ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
                     ctx.beginPath();
-                    ctx.arc(x, y, 2, 0, Math.PI * 2);
+                    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
             
-            calculateFPS(currentTime) {
+            calculateFPS() {
                 this.frameCount++;
-                if (currentTime - this.lastTime >= 1000) {
+                const now = performance.now();
+                if (now - this.lastTime >= 1000) {
                     this.fps = this.frameCount;
                     this.frameCount = 0;
-                    this.lastTime = currentTime;
-                    document.getElementById('fpsDisplay').textContent = this.fps;
+                    this.lastTime = now;
+                    document.getElementById('fpsCounter').textContent = this.fps;
                 }
             }
             
-            async gameLoop(currentTime) {
+            async gameLoop() {
                 if (!this.isRunning) return;
                 
-                this.calculateFPS(currentTime);
+                this.calculateFPS();
                 
                 // Детекция позы
                 const pose = await this.detectPose();
@@ -664,95 +634,115 @@
                     this.updateAvatar(pose);
                 }
                 
-                // Удаление фона (опционально)
-                if (this.backgroundRemoved) {
-                    await this.removeBackground();
-                }
-                
-                // Очищаем canvas
+                // Очистка и рисование
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                // Рисуем игру
                 this.drawBackground();
-                this.updateGameObjects();
-                this.drawGameObjects();
-                this.drawMegaAvatar();
                 
-                // Продолжаем цикл
-                requestAnimationFrame((time) => this.gameLoop(time));
-            }
-            
-            updateStatus(message, type) {
-                const statusElement = document.getElementById('trackingStatus');
-                const indicator = document.getElementById('trackingIndicator');
+                // Игровая логика
+                this.generateCrystals();
+                this.updateCrystals();
+                this.drawCrystals();
                 
-                statusElement.textContent = `Трекинг: ${message}`;
-                indicator.className = `status-indicator status-${type}`;
-            }
-            
-            updateScoreDisplay() {
-                document.getElementById('scoreValue').textContent = Math.floor(this.score);
-                document.getElementById('comboValue').textContent = this.combo.toFixed(1);
-            }
-            
-            showLoading(text) {
-                document.getElementById('loadingScreen').style.display = 'flex';
-                document.getElementById('loadingText').textContent = text;
-            }
-            
-            hideLoading() {
-                document.getElementById('loadingScreen').style.display = 'none';
+                // Рисуем аватар
+                this.drawAvatar();
+                
+                requestAnimationFrame(() => this.gameLoop());
             }
             
             async start() {
-                if (!this.poseDetector || !this.segmenter) {
-                    alert('Модели еще не загружены. Подождите немного.');
+                if (!this.isInitialized) {
+                    this.showError('Дождитесь загрузки AI моделей');
                     return;
                 }
                 
-                this.showLoading('Запуск камеры...');
-                const cameraStarted = await this.startCamera();
+                this.showLoading('Запуск игры...');
                 
-                if (!cameraStarted) {
+                const cameraOK = await this.startCamera();
+                if (!cameraOK) {
                     this.hideLoading();
                     return;
                 }
                 
-                // Создаем начальные игровые объекты
+                // Сброс игровых параметров
+                this.score = 0;
+                this.combo = 1.0;
+                this.crystals = [];
+                this.updateScoreDisplay();
+                
+                // Создаем начальные кристаллы
                 for (let i = 0; i < 3; i++) {
-                    this.createCrystal();
+                    this.crystals.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        rotation: 0,
+                        scale: 1,
+                        collected: false,
+                        type: Math.floor(Math.random() * 3)
+                    });
                 }
                 
                 this.hideLoading();
-                document.getElementById('instructions').style.display = 'none';
+                document.getElementById('startMenu').style.display = 'none';
                 this.isRunning = true;
                 
-                this.updateStatus('Готов к игре!', 'active');
-                this.gameLoop(0);
+                this.gameLoop();
+            }
+            
+            // Вспомогательные методы UI
+            showLoading(message = 'Загрузка...') {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                this.updateLoadingStatus(message);
+            }
+            
+            hideLoading() {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+            
+            updateLoadingStatus(text) {
+                document.getElementById('loadingStatus').textContent = text;
+            }
+            
+            updateStatus(text, type) {
+                document.getElementById('trackingText').textContent = `Трекинг: ${text}`;
+                document.getElementById('trackingDot').className = `status-dot status-${type}`;
+            }
+            
+            updateCameraStatus(text, type) {
+                document.getElementById('cameraText').textContent = text;
+                document.getElementById('cameraDot').className = `status-dot status-${type}`;
+            }
+            
+            updateScoreDisplay() {
+                document.getElementById('scoreDisplay').textContent = this.score;
+                document.getElementById('comboDisplay').textContent = this.combo.toFixed(1);
+            }
+            
+            showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                setTimeout(() => {
+                    errorEl.style.display = 'none';
+                }, 5000);
             }
         }
         
         // Создаем экземпляр игры
-        const megaGame = new MegaGame();
+        const game = new UltimateBodyTrackingGame();
         
         // Функции для кнопок
-        async function initializeGame() {
-            await megaGame.start();
+        async function startUltimateGame() {
+            await game.start();
         }
         
-        async function testCamera() {
-            const success = await megaGame.startCamera();
+        async function testCameraFunction() {
+            const success = await game.startCamera();
             if (success) {
-                alert('Камера работает отлично! Теперь можете запустить игру.');
+                alert('✅ Камера работает отлично! Можете запускать игру.');
             }
         }
         
-        // Обработчик изменения размера окна
-        window.addEventListener('resize', () => {
-            megaGame.setupCanvas();
-        });
-        
-        console.log('🚀 МЕГА-КАЧЕСТВЕННАЯ ИГРА ГОТОВА К ЗАПУСКУ!');
+        console.log('🎮 Ultimate Body Tracking Game готова к запуску!');
     </script>
 </body>
 </html>
